@@ -1,210 +1,126 @@
-# MVP Feature Breakdown
+# Initial Demo Feature Breakdown
 
-Based on [requirements.md](./requirements.md), the MVP is split into 12 features
-in dependency order. Each feature has a distinct outcome and acceptance boundary.
-This breakdown is for planning; it does not authorize implementation.
+Based on [requirements.md](./requirements.md), deliver four features:
+three Python scripts, then demo files and a walkthrough.
 
-## Phase 1 - Establish the foundation
+The outcome is **generate once, evaluate twice, compare**. This document is a
+breakdown of the work, not an instruction to implement it.
 
-### 1. Standalone workbench setup
+## 1. Test generation script
 
-Package the pinned ASSERT engine and vendored UI so no separate ASSERT checkout
-is required.
-
-**Includes:** Python/Node setup, upstream revision and licence records, local
-artifact directory, Git exclusions, and localhost-only UI.
-
-**Done when:** A fresh installation starts the UI and invokes the installed
-`assert-ai` executable.
-
-**First checkpoint:** Verify the chosen ASSERT revision supports the required
-artifact formats, scoring fields, and execution settings. Defer unsupported
-capabilities rather than expanding the engine.
-
-### 2. Shared configuration and model selection
-
-Give the UI and runner one consistent configuration source.
-
-**Includes:** Root `.env` loading, process-variable precedence, strict
-`ASSERT_MODEL_OPTIONS` validation, configured-model-only selection, and a
-placeholder-only environment example.
-
-**Done when:** Both interfaces expose the same models, reject invalid/unknown
-selections, and never expose credentials.
-
-**Depends on:** 1.
-
-### 3. Model-and-prompt target adapter
-
-Introduce the narrow extension boundary for evaluation targets.
-
-**Includes:** Typed target configuration, local prompt-file loading for the
-runner, one validation/mapping function, and explicit rejection of unsupported
-target kinds.
-
-**Done when:** Changing the model or prompt requires only configuration/files and
-cannot change judge settings.
-
-**Depends on:** 2.
-
-## Phase 2 - Create reusable evaluation packs
-
-### 4. Trial authoring through ASSERT's UI
-
-Make the existing authoring workflow work in the new repository layout.
-
-**Includes:** Trial creation/run launch, taxonomy and prompt inspection, the
-existing system-prompt text area, configured-model enforcement, and hiding
-unsupported target controls.
-
-**Done when:** A user can create a trial and inspect its artifacts using the
-pinned engine.
-
-**Depends on:** 1-2.
-
-### 5. Save an immutable, versioned pack
-
-Turn reviewed trial artifacts into reusable tests.
+**Outcome:** Generate and save a small test set for human review and reuse.
 
 **Includes:**
 
-- One atomic behavior and single-turn cases with unique IDs.
-- Context, compatibility declarations, taxonomy, rubrics, and source configuration.
-- Frozen judge identifier, settings, and scoring configuration.
-- Metadata, checksums, and overwrite protection.
-- Validation of permissible and impermissible coverage before saving.
+- First verify that a pinned ASSERT version supports generation, saved-test
+  execution, and the required scoring artifacts through its documented CLI.
+  Surface unsupported capabilities rather than building a replacement engine.
+- Add the pinned Python dependency and basic installation instructions.
+- Accept a JSON config-file path with behavior/context, case count, generation
+  model, judge model/settings, and output folder.
+- Use ASSERT's supported config-file mechanism for large inputs. Reference
+  text files for long content and resolve relative paths from the config folder.
+- Save test cases with unique IDs, context, taxonomy, rubrics, and explicit
+  judge/scoring configuration.
+- Reject existing output folders and clearly report failed or incomplete
+  generation. If ASSERT requires a trial evaluation, document its extra model
+  calls and cost.
+- Read credentials from the environment, keep secrets out of configuration and
+  output, and exclude generated/customer data from Git.
 
-**Done when:** A reviewed trial saves as a new pack version; invalid contents and
-overwrites are rejected.
+**Done when:** A config-driven invocation creates a reviewable test set in a new
+folder, including the artifacts needed for evaluation without regeneration.
 
-**Depends on:** 4.
+**Depends on:** None.
 
-### 6. Persistent pack catalogue
+## 2. Evaluation script
 
-Discover and validate saved packs without editing runner code.
-
-**Includes:** Listing name/version/behavior/case count, inspecting metadata,
-checksum verification, and context/target compatibility validation.
-
-**Done when:** Packs remain discoverable after restart; altered or incompatible
-packs are rejected.
-
-**Depends on:** 5.
-
-## Phase 3 - Run frozen tests reliably
-
-### 7. Execute a saved pack
-
-Run an explicit model/prompt combination against a selected pack version.
-
-**Includes:** One Python entry point, explicit execution selections, run-local
-copies of pack inputs, strict parsing, generation disabled, and invocation
-through `assert-ai run`.
-
-**Done when:** Repeated executions create separate runs while published pack
-files and judge configuration remain unchanged. The runner works with the UI
-stopped.
-
-**Depends on:** 3, 6.
-
-### 8. Execution controls and durable run records
-
-Make execution reliable and reproducible, including unsuccessful runs.
-
-**Includes:** Engine-supported concurrency/timeouts/bounded retries, unique run
-directories, timestamps/status, resolved target and judge settings, exact prompt,
-pack checksums, thresholds, ASSERT revision, and viewer-compatible evidence.
-
-**Done when:** Provider failures, retry exhaustion, and interruptions remain
-visibly incomplete; later configuration changes cannot alter earlier run records.
-
-**Depends on:** 7.
-
-## Phase 4 - Produce trustworthy gate decisions
-
-### 9. Evidence completeness validation
-
-Determine whether a run contains enough valid evidence to support a decision.
-
-**Includes:** Exactly one successful final score per expected case, required
-dimensions/node judgments, rejection of duplicate/missing/unexpected/skipped/
-failed/invalid cases, and applicability validation.
-
-**Done when:** Incomplete, invalid, or zero-applicability evidence cannot produce
-a pass.
-
-**Depends on:** 8.
-
-### 10. Gate calculation and reporting
-
-Calculate the specified metrics and return an actionable result.
+**Outcome:** Evaluate a chosen model and system prompt against saved tests.
 
 **Includes:**
 
-- Impermissible violation rate using its relevant-case denominator.
-- Overrefusal using valid, applicable dimension judgments, excluding N/A.
-- Separate permissible-side violation reporting.
-- Threshold validation in `[0, 1]`; equality passes.
-- `pass`, `fail`, and `needs_review`.
-- Console/JSON output with counts, numerators/denominators, thresholds, and
-  failing-case references.
-- Documented non-success exit codes.
+- Accept a JSON config-file path selecting the test-set folder, candidate
+  provider/model and settings, system-prompt file, and new output folder.
+- Run ASSERT against working copies with generation disabled. Preserve the
+  source tests and their judge/scoring configuration.
+- Save run-local inputs, resolved settings, exact prompt, ASSERT version,
+  responses, judgments, and execution status.
+- Print and save scored/expected counts and applicable violation/overrefusal
+  metrics with explicit labels, numerators, and denominators as specified in
+  [requirements.md](./requirements.md#evaluate-a-model).
+- Reject existing output folders. Return nonzero for invalid inputs,
+  execution failures, or incomplete/invalid results. Missing scores or absent
+  applicability must not appear as successful zero-violation results.
+- Reuse ASSERT's supported timeout/retry settings; do not add another retry loop.
 
-**Done when:** Focused fixtures demonstrate pass, fail, and review-required
-outcomes without treating partial evidence as a final decision.
+**Focused test:** Verify evaluation reuses saved tests without changing them or
+regenerating cases.
 
-**Depends on:** 9.
+**Done when:** Two invocations can use the same test set with different candidate
+models or prompts, producing separate results while keeping tests and judge
+settings fixed.
 
-### 11. Run history and evidence inspection
+**Depends on:** Feature 1's saved test artifacts.
 
-Reopen previous results through the runner and ASSERT UI.
+## 3. Run comparison script
 
-**Includes:** Run listing/inspection, persistent history, UI evidence viewing, and
-comparison of compatible runs.
+**Outcome:** Explain differences between two evaluations of the same tests.
 
-**Done when:** Earlier runs remain accessible after restart through the same
-artifact location. No automated regression decision is introduced.
+**Includes:**
 
-**Depends on:** 8; final gate display depends on 10.
+- Accept two run-folder paths; make no model calls.
+- Require exactly one successful final result per expected case ID and valid
+  judgments. Reject incomplete or incompatible runs with a clear error and
+  nonzero exit status.
+- Verify matching test content, context, taxonomy, rubrics, and judge/scoring
+  settings from saved inputs, not merely paths or case IDs.
+- Show each candidate model and system prompt.
+- Print and save a JSON comparison with side-by-side counts, metric
+  numerators/denominators, rates, and differences labeled second minus first.
+- Mark metrics without applicable evidence as unavailable and omit their
+  differences.
+- Match cases by ID and identify changed judgments, with responses or evidence
+  references. Do not declare a winner or make statistical or deployment claims.
 
-## Phase 5 - Make it reusable
+**Focused tests:**
 
-### 12. Onboarding example and end-to-end acceptance
+- Correct metric differences and changed-outcome matching by case ID.
+- Rejection of different tests or judge/scoring settings.
+- Missing, duplicate, failed, or invalid results cannot appear complete or
+  produce a successful comparison.
 
-Document and demonstrate the complete workflow.
+Use small local fixtures, not live model calls, for automated tests.
 
-**Includes:** Non-sensitive examples, setup/startup instructions, adding
-models/prompts/packs, credential variable names, artifact paths, UI update checks,
-extension-boundary documentation, and clearly labelled recorded results.
+**Done when:** Two compatible saved runs produce an understandable comparison
+without generating tests or invoking models.
 
-**Done when:** A fresh user completes the workflow, adds a second
-behavior/model/prompt without runner changes, and passes the acceptance checks
-in [requirements.md](./requirements.md#4-acceptance-checks).
+**Depends on:** Feature 2's saved run artifacts.
 
-**Depends on:** All preceding features. Update documentation alongside each
-feature rather than leaving it all until the end.
+## 4. Demo files and walkthrough
 
-## Suggested delivery milestones
+**Outcome:** Demonstrate the complete workflow with a few short commands.
 
-| Milestone | Features | Demonstrable outcome |
-| --- | --- | --- |
-| Foundation | 1-3 | Standalone setup with controlled model/prompt selection |
-| Reusable tests | 4-6 | Author, save, and discover immutable packs |
-| Repeatable execution | 7-8 | Run frozen tests and preserve evidence |
-| Trustworthy decisions | 9-11 | Validate, gate, report, and reopen results |
-| Reusable MVP | 12 | Documented, verified customer onboarding |
+**Includes:**
 
-## Decisions before implementation
+- Non-sensitive behavior/context and prompt files.
+- A generation config for one behavior with 10-20 cases.
+- Two evaluation configs using the same generated test set and judge settings,
+  differing only in candidate model or system prompt, with separate outputs.
+- Placeholder-only credential instructions; no secrets in example files.
+- A short walkthrough covering installation, config-relative paths, generation,
+  manual review of permitted/prohibited coverage, two evaluations, comparison,
+  and output locations.
+- A manual end-to-end run confirming that source tests and earlier outputs stay
+  unchanged. Generated outputs remain local and out of Git.
 
-- Repository location and supported operating system.
-- Initial behavior, case count, and acceptance thresholds.
-- Initial model/provider configuration and credential provisioning.
-- System prompt examples to ship.
-- Customer permission to install Node.js.
+**Done when:** Following the walkthrough generates one reviewed test set,
+evaluates it twice, and compares metric and case-level differences without
+Node.js, a UI, or a separate ASSERT source checkout.
 
-## Outside the MVP
+**Depends on:** Features 1-3 for final end-to-end verification.
 
-Keep the future capabilities listed in
-[requirements.md](./requirements.md#5-future-features) out of these MVP features,
-including agents/tools, multi-turn tests, regression gates, governance, shared
-hosting, and scheduling.
+## Scope boundary
+
+UI work is Stage 2 and is scoped separately. Do not add catalogues, formal
+versioning, adapter frameworks, threshold gates, automated regression decisions,
+partial comparisons, CI, scheduling, or shared hosting to these four features.

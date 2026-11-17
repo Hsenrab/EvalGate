@@ -20,10 +20,11 @@ errors rather than silently selecting a different workflow.
 
 ### III. Never Report Success Without Sufficient Valid Evidence
 
-Success and pass decisions MUST be supported by sufficient valid evidence for the stated
-evaluation criteria. Failed, incomplete, invalid, or missing evaluation evidence MUST NOT be
-presented as a pass. Reports MUST disclose the scope evaluated, failures, and gaps that limit
-the conclusion. Skipped or unrun checks MUST NOT imply validation or approval.
+Reported conclusions MUST be supported by sufficient valid evidence for the stated evaluation
+criteria. Failed, incomplete, invalid, or missing evaluation evidence MUST NOT be presented as
+successful execution or a favourable evaluation outcome. Reports MUST disclose the scope
+evaluated, failures, and gaps that limit the conclusion. Skipped or unrun checks MUST NOT imply
+validation or approval.
 
 **Rationale:** a useful evaluation tool must distinguish demonstrated success from uncertainty.
 
@@ -59,16 +60,12 @@ code and dependencies MUST be preferred over clever solutions or unnecessary inf
 
 Testing MUST remain fast, purposeful, and independently runnable.
 
-- Tests MUST be organised by component and execution cost so developers can run only the
-  relevant subset.
 - Validation MUST default to the smallest test selection that validates a change. Broader suites
   MUST have a clear reason, not run automatically after every edit.
-- Fast unit tests, integration tests, and live model evaluations MUST be separately selectable.
-  Default development tests MUST NOT make provider calls.
+- Default development tests MUST NOT make provider calls. Live model evaluations MUST be
+  invoked separately.
 - Tests MUST cover meaningful behaviour, regressions, and boundary cases, not duplicate coverage
   or trivial implementation details.
-- Test groups MUST define runtime budgets. Material increases MUST be justified; redundant tests
-  MUST be consolidated rather than allowing unchecked growth.
 - Live evaluations MUST be explicitly invoked with bounded case counts, concurrency, retries,
   and timeouts. Runs MUST NOT silently expand.
 - Skipped or unrun checks MUST be disclosed. A partial selection MUST NOT be presented as complete
@@ -139,4 +136,4 @@ including scope, evidence validity, data protection, and bounded testing. Valida
 state the checks run and disclose unrun or skipped checks. Exceptions MUST be explicit and
 approved; changes to a governing rule require an amendment rather than an undocumented bypass.
 
-**Version**: 1.0.1 | **Ratified**: 2026-11-17 | **Last Amended**: 2026-11-17
+**Version**: 2.0.0 | **Ratified**: 2026-11-17 | **Last Amended**: 2026-11-17
