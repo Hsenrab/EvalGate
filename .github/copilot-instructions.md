@@ -22,6 +22,7 @@
 ## Validation and review
 
 - Run the smallest relevant validation. Do not run broad suites without a concrete reason.
+- Review planning documents, Markdown formatting, task numbering, dependencies, and links with built-in reading/search tools. Do not write or run ad hoc validation scripts for these checks unless explicitly requested; use an existing repository validator if one is available.
 - Add focused tests for meaningful new behaviour or fixes, not trivial implementation details or duplicate coverage.
 - Do not make live provider calls or install system runtimes without explicit approval.
 - Report actionable introduced bugs with location, scenario, and impact. Omit preference-only findings and unrelated pre-existing issues.
