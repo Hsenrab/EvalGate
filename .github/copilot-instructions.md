@@ -1,46 +1,33 @@
-# Copilot review instructions for EvalGate
+# Copilot behaviour instructions
 
-## Review scope
+## Scope and simplicity
 
-- Follow the [constitution](../.specify/memory/constitution.md), [requirements](../requirements.md), and affected feature artifacts. Surface conflicts.
-- Drafts do not authorize implementation; do not flag missing later features.
-- Report actionable introduced bugs with location, scenario, impact, and proportionate severity. Consolidate duplicates; omit uncertain findings and unrelated pre-existing issues.
+- Read the relevant requirements and existing code before making changes. Surface conflicts rather than silently choosing between them.
+- Implement only the requested scope. Do not treat planning or review requests as permission to implement.
+- Prefer the simplest working solution. Avoid speculative abstractions, defensive layers, infrastructure, and unrelated fixes.
+- Explain significant complexity or dependency trade-offs before expanding scope.
 
-## MVP simplicity
+## Tool use
 
-- This is a local MVP, not a production platform. Prefer simple workflows, clear errors, and manual retry over speculative abstractions, recovery, or hardening.
-- Validate external inputs and common failures, not hypothetical internal states. Extra defensive checks need a requirement or concrete failure.
-- MVP scope never excuses credential exposure, saved-data loss, or invalid evidence reported as success.
+- Use built-in file-reading, file-finding, and code-search tools when available. Do not use shell commands or Python/Node scripts for equivalent read/search operations.
+- Reserve the terminal for Git, execution, builds, tests, and package management. Keep commands short and single-purpose; inspect bounded output rather than dumping whole files or large diffs.
 
-## Style and maintainability
+## Editing
 
-- Follow existing naming, formatting, types, and helpers. Leave mechanical style to existing linters; avoid preference-only comments, new tooling, or unrelated refactors.
-- Preserve upstream UI styling/workflows. Flag readability, keyboard-access, or error-visibility regressions, not subjective redesigns.
-- Prefer existing dependencies and clear code; comment non-obvious logic only. Suggest simpler alternatives without weakening requirements.
+- Make precise changes that follow existing patterns. Reuse helpers and dependencies rather than introducing unnecessary tooling.
+- Preserve unrelated user changes. Do not discard work or perform destructive actions without permission.
+- Keep code clear; comment only non-obvious logic. Update directly affected documentation.
+- Never expose credentials or customer data in commands, logs, reports, or commits.
 
-## ASSERT integration and setup
+## Validation and review
 
-- Use pinned, installed `assert-ai` via supported CLI/configuration/artifacts, without a source checkout. No copied engine, upstream script imports, undocumented UI APIs, parallel runtime, or second retry loop.
-- Require UI source/lockfile, upstream commit, licence notices, and local-change record. Defer unsupported capabilities; disclose unverified support.
-- Check Windows 11/Ubuntu 24.04 LTS paths, spaces, and executable discovery. Preserve data; report setup failures. Never auto-install system runtimes. Bind UI to loopback; limit changes to feature scope.
+- Run the smallest relevant validation. Do not run broad suites without a concrete reason.
+- Add focused tests for meaningful new behaviour or fixes, not trivial implementation details or duplicate coverage.
+- Do not make live provider calls or install system runtimes without explicit approval.
+- Report actionable introduced bugs with location, scenario, and impact. Omit preference-only findings and unrelated pre-existing issues.
+- State what was checked and disclose unrun checks or limitations. Never present inspection as successful execution.
 
-## Configuration and immutable evidence
+## Communication
 
-- UI and runner must load root `.env` with process-variable precedence and enforce `ASSERT_MODEL_OPTIONS` without fallback.
-- Keep candidate model/prompt independent from generation and frozen judge/scoring. Adding models, prompts, or packs must not require code edits.
-- Reject pack overwrites/checksum mismatches. Execute only run-local copies with strict parsing and generation disabled.
-- Preserve unique runs with exact prompts, pack versions/checksums, target/judge settings, thresholds, ASSERT revision, timestamps, status, and evidence.
-- Never commit/expose credentials, `.env` contents, or customer artifacts. Git-ignore local data, dependencies, and builds. Ship only non-sensitive examples and placeholder configuration.
-
-## Gate correctness
-
-- Require one successful final score per expected case and valid dimensions/node judgments. Missing, duplicate, unexpected, skipped, failed, or invalid cases cannot pass.
-- Use `policy_violation_not_permissible` over relevant impermissible cases, not aggregate `policy_violation`. Compute `overrefusal` from valid applicable dimension judgments, excluding N/A. Report `policy_violation_permissible` separately.
-- Thresholds must be in `[0, 1]`; equality passes. Zero required applicability or incomplete/invalid evidence means `needs_review`, not zero rates or final pass/fail.
-- Report numerators/denominators, scored/expected counts, thresholds, and failing cases. Document non-success exit codes. Results never certify safety or approve deployment.
-
-## Validation expectations
-
-- Require focused behavior/regression/boundary tests, not exhaustive, duplicate, or trivial tests. Run the smallest relevant selection; default tests/setup must not call providers.
-- Live evaluations require explicit invocation and bounded cases/concurrency/retries/timeouts. Disclose unrun checks; inspection is not live evidence.
-- Update directly affected documentation.
+- Be concise and practical. Explain outcomes, relevant limitations, and decisions needing user input.
+- Distinguish suggestions from completed changes. Do not claim success without verification.
