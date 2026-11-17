@@ -16,6 +16,34 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
+## Learnings
+
+For a small script, CLI wrapper, or demo, default to a short specification with one
+user journey, concrete acceptance examples, common errors, and explicit exclusions.
+Do not split input handling, saving output, and reporting failures into separate
+stories unless they are genuinely separate deliverables.
+
+### Proportionate specification
+
+- These small-feature rules take precedence over the larger-feature defaults below.
+  Preserve required setup and extension hooks.
+- Treat the template as a menu, not a minimum section or requirement count.
+  Omit unused stories, entities, metrics, and sections.
+- Derive requirements from the user's requested outcome and applicable project rules.
+  Do not invent performance targets, provider/authentication matrices, retention
+  systems, automatic cleanup, or recovery workflows from generic best practices.
+- Preserve explicit decisions and safeguards. If an earlier decision makes the demo
+  disproportionate, explain the trade-off and obtain agreement before changing it.
+  Prefer clear failure messages and manual retry where no recovery requirement exists.
+- Keep error cases to meaningful input errors and failure modes at the supported
+  boundary. Do not enumerate hypothetical internal failures or every field variation.
+- Use a few observable success criteria, not invented business or latency metrics.
+  For example: a config-driven invocation saves reviewable tests without overwriting
+  an existing folder.
+- Review a small spec directly with built-in reading/search tools. Report scope,
+  acceptance, and unresolved questions briefly; a separate quality checklist file
+  is only needed when requested. Do not create a document-validation script.
+
 ## Pre-Execution Checks
 
 **Check for extension hooks (before specification)**:
@@ -119,7 +147,8 @@ Given that feature description, do this:
     2. Extract key concepts from description
        Identify: actors, actions, data, constraints
     3. For unclear aspects:
-       - Make informed guesses based on context and industry standards
+       - Use the simplest default supported by the request and existing project context;
+         industry conventions do not authorize additional functionality
        - Only mark with [NEEDS CLARIFICATION: specific question] if:
          - The choice significantly impacts feature scope or user experience
          - Multiple reasonable interpretations exist with different implications
@@ -133,14 +162,19 @@ Given that feature description, do this:
        Use reasonable defaults for unspecified details (document assumptions in Assumptions section)
     6. Define Success Criteria
        Create measurable, technology-agnostic outcomes
-       Include both quantitative metrics (time, performance, volume) and qualitative measures (user satisfaction, task completion)
+       Use observable task completion or relevant counts; add performance or satisfaction
+       targets only when the feature actually requires them
        Each criterion must be verifiable without implementation details
     7. Identify Key Entities (if data involved)
     8. Return: SUCCESS (spec ready for planning)
 
-7. Write the specification to SPEC_FILE using the template structure, replacing placeholders with concrete details derived from the feature description (arguments) while preserving section order and headings.
+7. Write the specification to SPEC_FILE using the relevant template sections,
+   replacing placeholders with concrete details from the feature description.
+   Remove sections that do not apply rather than adding scope to fill them.
 
-8. **Specification Quality Validation**: After writing the initial spec, validate it against quality criteria:
+8. **Specification Quality Validation**: Review scope, testability, and completeness.
+   For a small feature, use the direct review described above and continue to the
+   Mandatory Post-Execution Hooks section. For larger features, use the checklist below:
 
    a. **Create Spec Quality Checklist**: Generate a checklist file at `SPECIFY_FEATURE_DIRECTORY/checklists/requirements.md` using the checklist template structure with these validation items:
 
@@ -272,7 +306,7 @@ Check if `.specify/extensions.yml` exists in the project root.
 Report completion to the user with:
 - `SPECIFY_FEATURE_DIRECTORY` — the feature directory path
 - `SPEC_FILE` — the spec file path
-- Checklist results summary
+- Brief review result; checklist summary only if a checklist was created
 - Readiness for the next phase (`/speckit-clarify` or `/speckit-plan`)
 
 **NOTE:** Branch creation is handled by the `before_specify` hook (git extension). Spec directory and file creation are always handled by this core command.
@@ -294,7 +328,8 @@ Report completion to the user with:
 
 When creating this spec from a user prompt:
 
-1. **Make informed guesses**: Use context, industry standards, and common patterns to fill gaps
+1. **Use minimal defaults**: Fill gaps from the request and existing context without
+   adding capabilities or hardening based solely on industry conventions
 2. **Document assumptions**: Record reasonable defaults in the Assumptions section
 3. **Limit clarifications**: Maximum 3 [NEEDS CLARIFICATION] markers - use only for critical decisions that:
    - Significantly impact feature scope or user experience
@@ -309,11 +344,10 @@ When creating this spec from a user prompt:
 
 **Examples of reasonable defaults** (don't ask about these):
 
-- Data retention: Industry-standard practices for the domain
-- Performance targets: Standard web/mobile app expectations unless specified
-- Error handling: User-friendly messages with appropriate fallbacks
-- Authentication method: Standard session-based or OAuth2 for web apps
-- Integration patterns: Use project-appropriate patterns (REST/GraphQL for web services, function calls for libraries, CLI args for tools, etc.)
+- Error handling: Clear errors and manual retry, unless recovery is requested
+- Dependencies: Reuse the supported existing interface rather than add a framework
+- Performance, authentication, and retention: Add no new mechanisms or targets unless
+  the requested workflow or applicable project rules require them
 
 ### Success Criteria Guidelines
 

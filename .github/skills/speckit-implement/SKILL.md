@@ -144,24 +144,31 @@ You **MUST** consider the user input before proceeding (if not empty).
    - **Kubernetes/k8s**: `*.secret.yaml`, `secrets/`, `.kube/`, `kubeconfig*`, `*.key`, `*.crt`
 
 5. Parse tasks.md structure and extract:
-   - **Task phases**: Setup, Tests, Core, Integration, Polish
+   - **Task grouping**: Follow a flat checklist or the phases actually present;
+     do not invent missing phases
    - **Task dependencies**: Sequential vs parallel execution rules
    - **Task details**: ID, description, file paths, parallel markers [P]
    - **Execution flow**: Order and dependency requirements
 
 6. Execute implementation following the task plan:
-   - **Phase-by-phase execution**: Complete each phase before moving to the next
+   - **Execution order**: Follow the checklist and actual dependencies; use
+     phase-by-phase execution only when the task plan includes phases
    - **Respect dependencies**: Run sequential tasks in order, parallel tasks [P] can run together
-   - **Follow TDD approach**: Execute test tasks before their corresponding implementation tasks
+   - **Test ordering**: Follow the approved plan; require tests first only when
+     the user explicitly requests TDD
    - **File-based coordination**: Tasks affecting the same files must run sequentially
-   - **Validation checkpoints**: Verify each phase completion before proceeding
+   - **Validation checkpoints**: Use meaningful checks from the task plan, without
+     adding checkpoints merely to imitate a larger project
 
 7. Implementation execution rules:
-   - **Setup first**: Initialize project structure, dependencies, configuration
-   - **Tests before code**: If you need to write tests for contracts, entities, and integration scenarios
-   - **Core development**: Implement models, services, CLI commands, endpoints
-   - **Integration work**: Database connections, middleware, logging, external services
-   - **Polish and validation**: Unit tests, performance optimization, documentation
+   - **Necessary setup first**: Make only the structure, dependency, and configuration
+     changes required by the approved plan
+   - **Focused tests**: Cover the requested behaviour and fixes without exhaustive
+     permutations or new test layers
+   - **Implementation scope**: Build only components required by the approved plan;
+     a small script does not need model/service layers or integration infrastructure
+   - **Validation and documentation**: Run relevant checks and update affected usage
+     notes; do not add unrequested optimization or hardening work
 
 8. Progress tracking and error handling:
    - Report progress after each completed task
