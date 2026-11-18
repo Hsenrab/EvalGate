@@ -221,3 +221,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# EvalGate local inputs and generated data
+local/
+outputs/
