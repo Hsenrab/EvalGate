@@ -108,3 +108,53 @@ behavior categories. These are sample outputs, not scored assistant responses;
 regeneration may produce different cases. The taxonomy copy omits the original
 machine-specific source path. Credentials and full local run artifacts remain
 ignored.
+
+## Evaluate a saved model
+
+Keep the generated test set unchanged and create an evaluation configuration
+such as `local/evaluation.json`:
+
+```json
+{
+  "test_set_folder": "../outputs/test-set-gender-bias",
+  "system_prompt_file": "candidate-system-prompt.txt",
+  "output_folder": "../outputs/gender-bias-candidate-01",
+  "candidate": {
+    "model": {
+      "name": "azure/gpt5_series/REPLACE_CANDIDATE_DEPLOYMENT",
+      "max_tokens": 3000
+    }
+  },
+  "inference": {
+    "max_turns": 1,
+    "concurrency": 2
+  }
+}
+```
+
+All relative paths resolve from the configuration file. The output destination
+must not exist. Credentials must remain in environment variables and are never
+accepted in this JSON file. For custom Azure deployments, use the explicit GPT
+family routing shown above so LiteLLM applies the correct token parameter.
+
+Run:
+
+```powershell
+.\.venv\Scripts\python.exe .\evaluate_model.py --config .\local\evaluation.json
+```
+
+Evaluation copies the test cases, taxonomy, resolved generation settings, and
+exact system prompt into the new run. ASSERT then runs inference and its existing
+judge configuration without regeneration. The source test-set folder is checked
+afterward for byte-for-byte changes.
+
+A successful run ends with `complete.json` and `summary.json`. The summary keeps
+`policy_violation_not_permissible`, `policy_violation_permissible`, and
+`overrefusal` separate. Each available metric includes a numerator, denominator,
+and rate; a metric with no applicable evidence is `unavailable`, not a
+zero-violation result.
+
+Failed and incomplete runs are retained for inspection with `failed.json` and
+available native ASSERT artifacts, but never receive `complete.json`. Use a new
+output folder for a retry. Native responses, judgments, and ASSERT execution
+status remain under the run's `native/` directory.
