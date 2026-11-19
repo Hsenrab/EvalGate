@@ -129,6 +129,19 @@ class GenerateTestsTests(unittest.TestCase):
 
             self.assertFalse((root / "output").exists())
 
+    def test_rejects_credential_fields_in_config(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            config_path = self.config(root)
+            config = json.loads(config_path.read_text())
+            config["AZURE_API_KEY"] = "do-not-save"
+            config_path.write_text(json.dumps(config), encoding="utf-8")
+
+            with self.assertRaisesRegex(
+                generate_tests.GenerationError, "Credentials are not allowed"
+            ):
+                generate_tests.load_generation_config(config_path)
+
 
 if __name__ == "__main__":
     unittest.main()

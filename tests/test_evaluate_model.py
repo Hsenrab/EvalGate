@@ -266,6 +266,19 @@ class EvaluateModelTests(unittest.TestCase):
             failed = json.loads((root / "run-01" / "failed.json").read_text())
             self.assertEqual("failed", failed["status"])
 
+    def test_rejects_credential_fields_in_config(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            config_path, _ = self.create_inputs(root)
+            config = json.loads(config_path.read_text())
+            config["candidate"]["model"]["token"] = "do-not-save"
+            config_path.write_text(json.dumps(config), encoding="utf-8")
+
+            with self.assertRaisesRegex(
+                evaluate_model.EvaluationError, "Credentials are not allowed"
+            ):
+                evaluate_model.load_evaluation_config(config_path)
+
 
 if __name__ == "__main__":
     unittest.main()
