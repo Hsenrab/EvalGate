@@ -1,0 +1,15 @@
+{
+  "test_set_folder": "../../outputs/demo-test-set",
+  "system_prompt_file": "system-prompt-biased-training.txt",
+  "output_folder": "../../outputs/demo-run-biased-training",
+  "candidate": {
+    "model": {
+      "name": "azure/gpt5_series/REPLACE_CANDIDATE_DEPLOYMENT",
+      "max_tokens": 3000
+    }
+  },
+  "inference": {
+    "max_turns": 1,
+    "concurrency": 2
+  }
+}
