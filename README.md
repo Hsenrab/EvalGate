@@ -31,8 +31,26 @@ python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
-For Entra authentication, sign in with Azure CLI and put only the non-secret
-endpoint settings in the ignored root `.env` file:
+### Azure authentication
+
+ASSERT selects Azure authentication from environment variables; the JSON demo
+configs do not contain credentials and remain identical for every auth mode.
+Existing process environment variables take precedence over the ignored root
+`.env`.
+
+**API key**
+
+Remove `ASSERT_AZURE_USE_AAD` and set a key in your ignored `.env`:
+
+```dotenv
+AZURE_API_BASE=https://YOUR-RESOURCE.openai.azure.com/
+AZURE_API_VERSION=YOUR-API-VERSION
+AZURE_API_KEY=YOUR-API-KEY
+```
+
+**Explicit Entra**
+
+Force Entra mode and remove `AZURE_API_KEY`:
 
 ```powershell
 az login
@@ -44,7 +62,32 @@ AZURE_API_BASE=https://YOUR-RESOURCE.openai.azure.com/
 AZURE_API_VERSION=YOUR-API-VERSION
 ```
 
-Do not add tokens or the `AZURE_API_KEY` setting. The supported config is JSON, with ASSERT model and stage field
+ASSERT also supports **automatic Entra fallback**: if neither
+`ASSERT_AZURE_USE_AAD` nor `AZURE_API_KEY` is set, it uses
+`DefaultAzureCredential`. This may resolve `az login`, managed identity, a
+service principal from environment variables, or another supported
+non-interactive identity source. Interactive browser and VS Code credentials
+are intentionally excluded by ASSERT.
+
+Selection precedence is:
+
+1. Truthy `ASSERT_AZURE_USE_AAD` forces Entra.
+2. Otherwise, a non-empty `AZURE_API_KEY` selects API-key auth.
+3. Otherwise, `DefaultAzureCredential` is attempted.
+
+If authentication fails, confirm the endpoint and API version, then check the
+selected mode:
+
+- API key: verify `AZURE_API_KEY` is present in the process running EvalGate.
+- Entra: run `az login`, or provide the approved managed/service identity, and
+  verify that identity has access to the Azure OpenAI resource.
+- Fallback: if no explicit mode was selected, inspect which
+  `DefaultAzureCredential` sources are available.
+- If `azure-identity` is missing, reinstall the pinned dependencies from
+  `requirements.txt`; they include `assert-ai[azure-auth]`.
+
+Do not add API keys, tokens, or other credentials to JSON configs or tracked
+files. The supported config is JSON, with ASSERT model and stage field
 names plus `behavior_file`, `context_file`, and `output_folder`:
 
 ```json
