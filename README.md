@@ -158,3 +158,34 @@ Failed and incomplete runs are retained for inspection with `failed.json` and
 available native ASSERT artifacts, but never receive `complete.json`. Use a new
 output folder for a retry. Native responses, judgments, and ASSERT execution
 status remain under the run's `native/` directory.
+
+## Compare two evaluation runs
+
+Comparison is entirely offline. It reads two completed Feature 2 run folders,
+makes no provider calls, and rejects incompatible or incomplete evidence:
+
+```powershell
+.\.venv\Scripts\python.exe .\compare_runs.py `
+  .\outputs\candidate-a-run `
+  .\outputs\candidate-b-run `
+  --output .\outputs\candidate-comparison.json
+```
+
+The two runs must use identical saved test content, context, taxonomy, rubrics,
+and judge/scoring settings. Candidate models and system prompts may differ.
+`--output` is optional and defaults to `comparison.json` in the current
+directory; an existing destination is never overwritten.
+
+The JSON report shows:
+
+- each candidate model and exact system prompt;
+- expected and scored case counts;
+- side-by-side metric numerators, denominators, and rates;
+- differences labeled `second_minus_first`;
+- case-level judgment changes matched by `test_case_id`, with references back
+  to each run's response and score evidence.
+
+If a metric lacks applicable evidence, its result is marked `unavailable` and
+no numeric difference is written. Comparison reports observations only; it
+does not declare a winner, statistical significance, safety certification, or
+deployment approval.
