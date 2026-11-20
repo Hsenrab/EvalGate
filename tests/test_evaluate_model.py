@@ -185,6 +185,7 @@ class EvaluateModelTests(unittest.TestCase):
                 summary["metrics"]["policy_violation_not_permissible"]["numerator"],
             )
             self.assertEqual(2, summary["metrics"]["overrefusal"]["denominator"])
+            self.assertEqual("Answer accurately.", summary["system_prompt"])
 
     def test_valid_not_applicable_dimension_does_not_fail_run(self) -> None:
         with tempfile.TemporaryDirectory() as temp:

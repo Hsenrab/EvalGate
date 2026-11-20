@@ -1,0 +1,547 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EvalGate Results Viewer</title>
+  <script>
+    (() => {
+      const param = new URLSearchParams(window.location.search).get("scoutTheme");
+      const theme =
+        param || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+      document.documentElement.setAttribute("data-theme", theme);
+    })();
+  </script>
+  <style>
+    :root {
+      color-scheme: light;
+      --cp-bg: #f7f4ef;
+      --cp-bg-elevated: #fcfbf8;
+      --cp-surface: #ffffff;
+      --cp-surface-soft: #f5f5f5;
+      --cp-border: #dedede;
+      --cp-border-strong: #919191;
+      --cp-text: #242424;
+      --cp-text-muted: #5c5c5c;
+      --cp-text-soft: #6f6f6f;
+      --cp-accent: #b11f4b;
+      --cp-accent-hover: #9a1a41;
+      --cp-accent-soft: rgba(177, 31, 75, 0.08);
+      --cp-accent-fg: #ffffff;
+      --cp-success: #16a34a;
+      --cp-danger: #dc2626;
+      --cp-warning: #f59e0b;
+      --cp-link: #0078d4;
+      --cp-shadow: 0 18px 48px rgba(0, 0, 0, 0.12);
+      --cp-overlay: rgba(255, 255, 255, 0.8);
+      --cp-panel: rgba(255, 255, 255, 0.86);
+      --cp-panel-strong: rgba(255, 255, 255, 0.96);
+      --cp-sheen: rgba(255, 255, 255, 0.55);
+      --cp-highlight: rgba(177, 31, 75, 0.12);
+    }
+    html[data-theme="dark"] {
+      color-scheme: dark;
+      --cp-bg: #3d3b3a;
+      --cp-bg-elevated: #343231;
+      --cp-surface: #292929;
+      --cp-surface-soft: #2e2e2e;
+      --cp-border: #474747;
+      --cp-border-strong: #5f5f5f;
+      --cp-text: #dedede;
+      --cp-text-muted: #919191;
+      --cp-text-soft: #b0b0b0;
+      --cp-accent: #fd8ea1;
+      --cp-accent-hover: #fb7b91;
+      --cp-accent-soft: rgba(253, 142, 161, 0.14);
+      --cp-accent-fg: #1a1a1a;
+      --cp-success: #4ade80;
+      --cp-danger: #f87171;
+      --cp-warning: #fbbf24;
+      --cp-link: #4da6ff;
+      --cp-shadow: 0 18px 48px rgba(0, 0, 0, 0.32);
+      --cp-overlay: rgba(41, 41, 41, 0.88);
+      --cp-panel: rgba(41, 41, 41, 0.72);
+      --cp-panel-strong: rgba(41, 41, 41, 0.96);
+      --cp-sheen: rgba(255, 255, 255, 0.04);
+      --cp-highlight: rgba(253, 142, 161, 0.12);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--cp-bg);
+      color: var(--cp-text);
+      font-family: "Segoe UI", Aptos, Calibri, -apple-system, BlinkMacSystemFont, sans-serif;
+      line-height: 1.45;
+    }
+    button, input { font: inherit; }
+    .shell { max-width: 1180px; margin: 0 auto; padding: 32px 20px 56px; }
+    header {
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+      align-items: flex-start;
+      margin-bottom: 24px;
+    }
+    h1 { margin: 0 0 8px; font-size: 2rem; letter-spacing: -0.025em; }
+    h2, h3 { margin: 0; }
+    p { margin: 0; }
+    .muted { color: var(--cp-text-muted); }
+    .eyebrow {
+      color: var(--cp-accent);
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .privacy {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid var(--cp-border);
+      border-radius: 999px;
+      padding: 8px 12px;
+      background: var(--cp-surface);
+      color: var(--cp-text-muted);
+      white-space: nowrap;
+      font-size: 0.875rem;
+    }
+    .privacy-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--cp-success);
+    }
+    .picker, .card {
+      background: var(--cp-surface);
+      border: 1px solid var(--cp-border);
+      border-radius: 16px;
+      box-shadow: 0 0 2px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.14);
+    }
+    .picker {
+      padding: 20px;
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .picker-copy { max-width: 720px; }
+    .picker-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .file-label, button {
+      border: 1px solid var(--cp-border-strong);
+      border-radius: 0.625rem;
+      background: var(--cp-surface);
+      color: var(--cp-text);
+      padding: 10px 14px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .file-label:hover, button:hover { border-color: var(--cp-accent); }
+    .file-label input { position: absolute; inline-size: 1px; block-size: 1px; opacity: 0; }
+    .primary { background: var(--cp-accent); border-color: var(--cp-accent); color: var(--cp-accent-fg); }
+    .primary:hover { background: var(--cp-accent-hover); border-color: var(--cp-accent-hover); }
+    .empty, .error-card {
+      border: 1px dashed var(--cp-border-strong);
+      border-radius: 16px;
+      padding: 32px;
+      color: var(--cp-text-muted);
+      background: var(--cp-bg-elevated);
+      margin-bottom: 16px;
+    }
+    .error-card {
+      border-style: solid;
+      border-color: var(--cp-danger);
+      color: var(--cp-text);
+      background: var(--cp-accent-soft);
+    }
+    .error-card strong { color: var(--cp-danger); }
+    .cards { display: grid; gap: 16px; }
+    .card { padding: 20px; overflow: hidden; }
+    .card-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .status {
+      border-radius: 999px;
+      padding: 5px 10px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      border: 1px solid var(--cp-border);
+      background: var(--cp-surface-soft);
+    }
+    .status.complete { color: var(--cp-success); }
+    .status.unavailable { color: var(--cp-warning); }
+    .identity-grid, .run-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .stat {
+      background: var(--cp-surface-soft);
+      border: 1px solid var(--cp-border);
+      border-radius: 0.625rem;
+      padding: 12px;
+    }
+    .stat-label { color: var(--cp-text-muted); font-size: 0.78rem; text-transform: uppercase; }
+    .stat-value { font-size: 1.1rem; font-weight: 650; margin-top: 4px; overflow-wrap: anywhere; }
+    .prompt {
+      margin: 12px 0 16px;
+      padding: 12px;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      background: var(--cp-surface-soft);
+      border-left: 3px solid var(--cp-accent);
+      border-radius: 0.625rem;
+      font-family: Consolas, "Courier New", Courier, monospace;
+      font-size: 0.875rem;
+    }
+    .table-wrap { overflow-x: auto; border: 1px solid var(--cp-border); border-radius: 0.625rem; }
+    table { width: 100%; border-collapse: collapse; min-width: 640px; }
+    th, td { padding: 11px 12px; text-align: left; border-bottom: 1px solid var(--cp-border); }
+    th { background: var(--cp-surface-soft); color: var(--cp-text-muted); font-size: 0.78rem; text-transform: uppercase; }
+    tr:last-child td { border-bottom: 0; }
+    .metric-name { font-weight: 650; }
+    .rate { font-variant-numeric: tabular-nums; font-weight: 700; }
+    .positive { color: var(--cp-danger); }
+    .negative { color: var(--cp-success); }
+    .warning {
+      color: var(--cp-warning);
+      background: var(--cp-accent-soft);
+      border: 1px solid var(--cp-border);
+      border-radius: 0.625rem;
+      padding: 10px 12px;
+      margin-top: 12px;
+    }
+    details {
+      border: 1px solid var(--cp-border);
+      border-radius: 0.625rem;
+      background: var(--cp-surface-soft);
+      margin-top: 8px;
+      padding: 12px;
+    }
+    summary { cursor: pointer; font-weight: 650; }
+    .evidence {
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+      font-family: Consolas, "Courier New", Courier, monospace;
+      font-size: 0.8rem;
+      overflow-wrap: anywhere;
+    }
+    .reference {
+      background: var(--cp-surface);
+      border: 1px solid var(--cp-border);
+      border-radius: 0.625rem;
+      padding: 10px;
+    }
+    .section-title { margin: 20px 0 10px; }
+    .explanation { margin-top: 12px; }
+    .explanation p { margin-top: 10px; color: var(--cp-text-muted); }
+    .warning.explanation summary { color: var(--cp-warning); }
+    .warning.explanation p { color: var(--cp-text-muted); }
+    .file-name { color: var(--cp-text-soft); font-size: 0.8rem; margin-top: 4px; overflow-wrap: anywhere; }
+    @media (max-width: 680px) {
+      .shell { padding: 20px 12px 40px; }
+      header, .picker { flex-direction: column; align-items: stretch; }
+      .privacy { align-self: flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div>
+        <div class="eyebrow">EvalGate</div>
+        <h1>Results viewer</h1>
+        <p class="muted">Open saved run summaries and comparisons locally. No uploads, no server, no additional model calls.</p>
+      </div>
+      <div class="privacy"><span class="privacy-dot"></span>Local-only viewing</div>
+    </header>
+
+    <section class="picker" aria-labelledby="picker-title">
+      <div class="picker-copy">
+        <h2 id="picker-title">Select saved JSON</h2>
+        <p class="muted">Choose one or more EvalGate <code>summary.json</code> or <code>comparison.json</code> files.</p>
+      </div>
+      <div class="picker-actions">
+        <label class="file-label primary">
+          Select files
+          <input id="files" type="file" accept=".json,application/json" multiple>
+        </label>
+        <button id="clear" type="button">Clear</button>
+      </div>
+    </section>
+
+    <section id="output" aria-live="polite">
+      <div class="empty">No artifacts selected. Your files remain in this browser session only.</div>
+    </section>
+  </main>
+
+  <script>
+    "use strict";
+
+    const output = document.querySelector("#output");
+    const fileInput = document.querySelector("#files");
+    const clearButton = document.querySelector("#clear");
+    const metricNames = [
+      "policy_violation_not_permissible",
+      "policy_violation_permissible",
+      "overrefusal"
+    ];
+
+    const escapeHtml = (value) =>
+      String(value ?? "").replace(/[&<>"']/g, (character) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+      })[character]);
+
+    const isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
+    const isCount = (value) => Number.isInteger(value) && value >= 0;
+    const formatRate = (value) => `${(value * 100).toFixed(1)}%`;
+    const formatSignedRate = (value) => `${value >= 0 ? "+" : ""}${(value * 100).toFixed(1)} pts`;
+
+    function requireFields(object, fields, label) {
+      for (const field of fields) {
+        if (!(field in object)) throw new Error(`${label} is missing "${field}".`);
+      }
+    }
+
+    function validateMetric(metric, label) {
+      if (!isObject(metric) || !["available", "unavailable"].includes(metric.status)) {
+        throw new Error(`${label} has an invalid status.`);
+      }
+      if (metric.status === "unavailable") return;
+      if (!isCount(metric.numerator) || !isCount(metric.denominator) || metric.denominator <= 0 ||
+          metric.numerator > metric.denominator || typeof metric.rate !== "number" ||
+          !Number.isFinite(metric.rate)) {
+        throw new Error(`${label} is not a complete available metric.`);
+      }
+    }
+
+    function detectSummary(data) {
+      return isObject(data) && typeof data.assert_version === "string" &&
+        isObject(data.candidate_model) && isObject(data.metrics) &&
+        !("difference_direction" in data);
+    }
+
+    function detectComparison(data) {
+      return isObject(data) && data.difference_direction === "second_minus_first" &&
+        isObject(data.first) && isObject(data.second) && isObject(data.cases);
+    }
+
+    function validateSummary(data) {
+      requireFields(data, ["status", "assert_version", "expected_count", "scored_count", "candidate_model", "metrics"], "Run summary");
+      if (data.status !== "complete") throw new Error("Run summary is not complete.");
+      if (!isCount(data.expected_count) || !isCount(data.scored_count) ||
+          data.scored_count !== data.expected_count) {
+        throw new Error("Run summary counts are invalid or incomplete.");
+      }
+      for (const name of metricNames) validateMetric(data.metrics[name], name);
+    }
+
+    function validateRunSide(side, label) {
+      requireFields(side, ["candidate_model", "system_prompt", "expected_count", "scored_count"], label);
+      if (!isObject(side.candidate_model) || typeof side.system_prompt !== "string" ||
+          !isCount(side.expected_count) || !isCount(side.scored_count) ||
+          side.scored_count !== side.expected_count) {
+        throw new Error(`${label} is invalid or incomplete.`);
+      }
+    }
+
+    function validateComparison(data) {
+      requireFields(data, ["status", "assert_version", "difference_direction", "first", "second", "metrics", "cases"], "Comparison");
+      if (data.status !== "complete") throw new Error("Comparison is not complete.");
+      validateRunSide(data.first, "First run");
+      validateRunSide(data.second, "Second run");
+      for (const name of metricNames) {
+        const comparison = data.metrics[name];
+        if (!isObject(comparison)) throw new Error(`${name} comparison is missing.`);
+        validateMetric(comparison.first, `${name} first`);
+        validateMetric(comparison.second, `${name} second`);
+        if (comparison.first.status === "available" && comparison.second.status === "available") {
+          if (typeof comparison.second_minus_first !== "number" ||
+              !Number.isFinite(comparison.second_minus_first)) {
+            throw new Error(`${name} is missing a numeric difference.`);
+          }
+        } else if ("second_minus_first" in comparison) {
+          throw new Error(`${name} must not contain a difference for unavailable evidence.`);
+        }
+      }
+      if (!isObject(data.cases) || !isCount(data.cases.expected_count) ||
+          !isCount(data.cases.changed_count) || !isCount(data.cases.unchanged_count) ||
+          !Array.isArray(data.cases.changed) ||
+          data.cases.changed.length !== data.cases.changed_count) {
+        throw new Error("Comparison case summary is invalid.");
+      }
+      for (const changed of data.cases.changed) {
+        if (!isObject(changed) || typeof changed.test_case_id !== "string" ||
+            !isObject(changed.first) || !isObject(changed.second) ||
+            typeof changed.first.response_reference !== "string" ||
+            typeof changed.first.judgment_reference !== "string" ||
+            typeof changed.second.response_reference !== "string" ||
+            typeof changed.second.judgment_reference !== "string") {
+          throw new Error("A changed case is missing required evidence references.");
+        }
+      }
+    }
+
+    function renderMetricTable(metrics) {
+      return `
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Metric</th><th>Status</th><th>Evidence</th><th>Rate</th></tr></thead>
+            <tbody>
+              ${metricNames.map((name) => {
+                const metric = metrics[name];
+                if (metric.status === "unavailable") {
+                  return `<tr><td class="metric-name">${escapeHtml(name)}</td><td>Unavailable</td><td>—</td><td>—</td></tr>`;
+                }
+                return `<tr><td class="metric-name">${escapeHtml(name)}</td><td>Available</td><td>${metric.numerator}/${metric.denominator}</td><td class="rate">${formatRate(metric.rate)}</td></tr>`;
+              }).join("")}
+            </tbody>
+          </table>
+        </div>`;
+    }
+
+    function renderSummary(data, fileName) {
+      const prompt = typeof data.system_prompt === "string"
+        ? data.system_prompt
+        : "System prompt was not saved in this older summary artifact.";
+      return `
+        <article class="card">
+          <div class="card-head">
+            <div><div class="eyebrow">Run summary</div><h2>${escapeHtml(data.candidate_model.name || "Candidate")}</h2><div class="file-name">${escapeHtml(fileName)}</div></div>
+            <span class="status complete">Complete</span>
+          </div>
+          <div class="identity-grid">
+            <div class="stat"><div class="stat-label">ASSERT</div><div class="stat-value">${escapeHtml(data.assert_version)}</div></div>
+            <div class="stat"><div class="stat-label">Scored</div><div class="stat-value">${data.scored_count}/${data.expected_count}</div></div>
+            <div class="stat"><div class="stat-label">Max tokens</div><div class="stat-value">${escapeHtml(data.candidate_model.max_tokens ?? "Not recorded")}</div></div>
+          </div>
+          <div class="eyebrow">System prompt</div>
+          <div class="prompt">${escapeHtml(prompt)}</div>
+          ${renderMetricTable(data.metrics)}
+        </article>`;
+    }
+
+    function renderComparisonMetrics(metrics) {
+      const warnings = [];
+      const rows = metricNames.map((name) => {
+        const metric = metrics[name];
+        const first = metric.first;
+        const second = metric.second;
+        if (first.status === "available" && second.status === "available" &&
+            first.denominator !== second.denominator) {
+          warnings.push(name);
+        }
+        const firstValue = first.status === "available"
+          ? `${first.numerator}/${first.denominator} · ${formatRate(first.rate)}`
+          : "Unavailable";
+        const secondValue = second.status === "available"
+          ? `${second.numerator}/${second.denominator} · ${formatRate(second.rate)}`
+          : "Unavailable";
+        const difference = typeof metric.second_minus_first === "number"
+          ? `<span class="${metric.second_minus_first > 0 ? "positive" : metric.second_minus_first < 0 ? "negative" : ""}">${formatSignedRate(metric.second_minus_first)}</span>`
+          : "Unavailable";
+        return `<tr><td class="metric-name">${escapeHtml(name)}</td><td>${firstValue}</td><td>${secondValue}</td><td>${difference}</td></tr>`;
+      }).join("");
+      return `
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Metric</th><th>First run</th><th>Second run</th><th>Second − first</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+        ${warnings.length ? `<details class="warning explanation">
+          <summary>Applicability denominators changed for: ${warnings.map(escapeHtml).join(", ")}</summary>
+          <p><strong>Why did the denominator change?</strong> The judge independently decides which taxonomy categories are relevant for every response. Different candidate responses or system prompts can expose different relevant behaviors, so the same fixed test set can contribute a different number of cases to a metric.</p>
+          <p><strong>1. Run every case.</strong> The full saved test set is sent to the candidate, and the judge scores every completed response.</p>
+          <p><strong>2. Classify relevance.</strong> For each case, the judge selects the behavior categories that apply. A case can belong to a permissible group, an impermissible group, both, or neither.</p>
+          <p><strong>3. Build each metric.</strong> A case enters a metric's denominator only when at least one relevant category belongs to that metric's group. The numerator counts violations among those applicable cases.</p>
+          <p><strong>Example.</strong> A request asking whether women should be excluded from leadership can be applicable to gender stereotyping and unequal-advice categories. A request for a purely gender-neutral resume scoring rubric may remain applicable only to permissible, gender-neutral behavior and therefore not enter an impermissible violation metric.</p>
+          <p>So 1/6 means one violation among six applicable cases, not that only six tests ran. Here, the judge classified a different number of cases as applicable between the runs. Inspect the changed cases and saved judgments before interpreting the rate change.</p>
+        </details>` : ""}`;
+    }
+
+    function renderComparisonCases(cases) {
+      if (cases.changed.length === 0) {
+        return `<p class="muted">No changed judgments in the saved evidence.</p>`;
+      }
+      return cases.changed.map((item) => `
+        <details>
+          <summary>${escapeHtml(item.test_case_id)}</summary>
+          <div class="evidence">
+            <div class="reference"><strong>First response:</strong> ${escapeHtml(item.first.response_reference)}</div>
+            <div class="reference"><strong>First judgment:</strong> ${escapeHtml(item.first.judgment_reference)}</div>
+            <div class="reference"><strong>Second response:</strong> ${escapeHtml(item.second.response_reference)}</div>
+            <div class="reference"><strong>Second judgment:</strong> ${escapeHtml(item.second.judgment_reference)}</div>
+          </div>
+        </details>`).join("");
+    }
+
+    function renderComparison(data, fileName) {
+      return `
+        <article class="card">
+          <div class="card-head">
+            <div><div class="eyebrow">Comparison</div><h2>Second run minus first run</h2><div class="file-name">${escapeHtml(fileName)}</div></div>
+            <span class="status complete">Complete</span>
+          </div>
+          <div class="run-grid">
+            <div class="stat"><div class="stat-label">First candidate</div><div class="stat-value">${escapeHtml(data.first.candidate_model.name || "Unknown")}</div><div class="muted">${data.first.scored_count}/${data.first.expected_count} scored</div></div>
+            <div class="stat"><div class="stat-label">Second candidate</div><div class="stat-value">${escapeHtml(data.second.candidate_model.name || "Unknown")}</div><div class="muted">${data.second.scored_count}/${data.second.expected_count} scored</div></div>
+            <div class="stat"><div class="stat-label">Changed cases</div><div class="stat-value">${data.cases.changed_count}/${data.cases.expected_count}</div><div class="muted">${data.cases.unchanged_count} unchanged</div></div>
+          </div>
+          <div class="eyebrow">First system prompt</div><div class="prompt">${escapeHtml(data.first.system_prompt)}</div>
+          <div class="eyebrow">Second system prompt</div><div class="prompt">${escapeHtml(data.second.system_prompt)}</div>
+          <h3 class="section-title">Metrics</h3>
+          ${renderComparisonMetrics(data.metrics)}
+          <h3 class="section-title">Changed cases</h3>
+          ${renderComparisonCases(data.cases)}
+          <p class="muted section-title">Observational evidence only. No winner, significance, threshold, certification, or deployment decision is calculated.</p>
+        </article>`;
+    }
+
+    async function renderFile(file) {
+      let data;
+      try {
+        data = JSON.parse(await file.text());
+        if (detectSummary(data)) {
+          validateSummary(data);
+          return renderSummary(data, file.name);
+        }
+        if (detectComparison(data)) {
+          validateComparison(data);
+          return renderComparison(data, file.name);
+        }
+        throw new Error("Unsupported JSON. Select an EvalGate summary.json or comparison.json.");
+      } catch (error) {
+        return `<div class="error-card"><strong>${escapeHtml(file.name)}</strong><br>${escapeHtml(error.message)}</div>`;
+      }
+    }
+
+    async function renderSelectedFiles() {
+      const files = [...fileInput.files];
+      if (files.length === 0) {
+        output.innerHTML = '<div class="empty">No artifacts selected. Your files remain in this browser session only.</div>';
+        return;
+      }
+      output.innerHTML = '<div class="empty">Reading selected local files…</div>';
+      const rendered = await Promise.all(files.map(renderFile));
+      output.innerHTML = `<div class="cards">${rendered.join("")}</div>`;
+    }
+
+    fileInput.addEventListener("change", renderSelectedFiles);
+    clearButton.addEventListener("click", () => {
+      fileInput.value = "";
+      renderSelectedFiles();
+    });
+  </script>
+</body>
+</html>

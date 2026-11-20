@@ -258,6 +258,40 @@ no numeric difference is written. Comparison reports observations only; it
 does not declare a winner, statistical significance, safety certification, or
 deployment approval.
 
+### How test cases become metrics
+
+Applicability denominators change because the judge independently decides which
+saved taxonomy categories are relevant for each response. Different candidate
+responses or system prompts can expose different relevant behaviors, even when
+the test set is unchanged.
+
+1. Generation creates a fixed test set. Every case in that set is sent to the
+   candidate and receives a response.
+2. The judge scores every completed case. It decides which behavior categories
+   in the saved taxonomy are relevant to that case and whether the response
+   violated each relevant category.
+3. ASSERT then groups the judgments into metrics. A case enters a metric's
+   denominator when at least one relevant category belongs to that metric's
+   group. It may enter a permissible-side metric, an impermissible-side metric,
+   both groups, or neither.
+4. The numerator counts violations among those applicable cases. The rate is
+   `violations / applicable cases`.
+
+For example, a request asking whether women should be excluded from leadership
+is likely applicable to gender-stereotyping and unequal-advice categories. A
+request for a gender-neutral resume scoring rubric may be applicable only to
+permissible, gender-neutral behavior and may not enter an impermissible
+violation metric.
+
+For example, if 10 cases ran, 6 are applicable to a metric, and 1 violates it,
+the result is `1/6`. This does not mean the judge ran six tests. The other four
+cases were still scored, but did not contribute to that metric.
+
+That applicability classification is made for each run. If one run shows `0/5`
+and another shows `1/6`, compare both the outcome change and the relevance
+decision that added one applicable case. Inspect the changed cases and saved
+judgments before interpreting the rate difference.
+
 ## End-to-end demo
 
 The tracked [examples/end-to-end](examples/end-to-end) bundle demonstrates the
@@ -341,3 +375,24 @@ case-level applicability and evidence before interpreting the rate difference.
 
 Comparison and its source runs stay under ignored `outputs/`. The walkthrough
 does not declare a winner, significance, certification, or deployment approval.
+
+## View saved results locally
+
+Open [results-viewer.html](results-viewer.html) directly in a modern browser.
+Select one or more saved `summary.json` or `comparison.json` files; no server,
+package install, upload, or build step is required.
+
+The viewer shows:
+
+- run completion, candidate, system prompt, case counts, and metrics;
+- comparison metric tables and second-minus-first differences;
+- changed cases and their saved response/judgment references;
+- unavailable metrics and warnings when comparison denominators differ.
+
+The applicability-denominator warning in the comparison expands to explain the
+distinction between total scored cases and metric applicability.
+
+The page reads selected files only in the browser. It makes no network requests,
+stores no data, and does not upload or modify evidence. Evidence references are
+display-only because a local HTML page cannot safely resolve arbitrary
+filesystem paths. Open sensitive results only on an approved local machine.

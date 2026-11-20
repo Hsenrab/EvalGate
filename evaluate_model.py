@@ -340,6 +340,7 @@ def _build_summary(
         "expected_count": expected_count,
         "scored_count": len(status_payload.get("prompt_rows") or []),
         "candidate_model": config["candidate"]["model"],
+        "system_prompt": config["system_prompt"],
         "system_prompt_sha256": prompt_hash,
         "judge_model": prompt_metrics.get("judge_model"),
         "source_sha256": source_hashes,
