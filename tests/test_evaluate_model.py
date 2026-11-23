@@ -4,6 +4,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 import unittest
+from unittest import mock
 
 import evaluate_model
 
@@ -279,6 +280,23 @@ class EvaluateModelTests(unittest.TestCase):
                 evaluate_model.EvaluationError, "Credentials are not allowed"
             ):
                 evaluate_model.load_evaluation_config(config_path)
+
+    def test_reports_missing_model_environment_variable(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            config_path, _ = self.create_inputs(root)
+            config = json.loads(config_path.read_text())
+            config["candidate"]["model"]["name"] = (
+                "azure/gpt5_series/${EVALGATE_AZURE_DEPLOYMENT}"
+            )
+            config_path.write_text(json.dumps(config), encoding="utf-8")
+
+            with mock.patch.dict("os.environ", {}, clear=True):
+                with self.assertRaisesRegex(
+                    evaluate_model.EvaluationError,
+                    "EVALGATE_AZURE_DEPLOYMENT.*not set",
+                ):
+                    evaluate_model.load_evaluation_config(config_path)
 
 
 if __name__ == "__main__":

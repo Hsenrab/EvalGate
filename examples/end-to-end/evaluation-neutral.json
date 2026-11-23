@@ -4,7 +4,7 @@
   "output_folder": "../../outputs/demo-run-neutral",
   "candidate": {
     "model": {
-      "name": "azure/gpt5_series/REPLACE_CANDIDATE_DEPLOYMENT",
+      "name": "azure/gpt5_series/${EVALGATE_AZURE_DEPLOYMENT}",
       "max_tokens": 3000
     }
   },

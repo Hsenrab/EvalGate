@@ -155,6 +155,11 @@ class CompareRunsTests(unittest.TestCase):
                 ],
             )
             self.assertEqual(1, comparison["cases"]["changed_count"])
+            self.assertEqual(
+                "case-2", comparison["cases"]["items"][0]["test_case_id"]
+            )
+            self.assertTrue(comparison["cases"]["items"][0]["changed"])
+            self.assertIn("response", comparison["cases"]["items"][0]["first"])
             changed = comparison["cases"]["changed"][0]
             self.assertEqual("case-2", changed["test_case_id"])
             self.assertIn("case-2", changed["first"]["response_reference"])

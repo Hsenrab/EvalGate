@@ -1,56 +1,55 @@
 # EvalGate
 
 EvalGate is a lightweight, local workflow for evaluating AI assistants against
-behavior-specific tests. It wraps a pinned [ASSERT](https://github.com/responsibleai/ASSERT)
-release so you can:
+behavior-specific tests. It wraps a pinned
+[ASSERT](https://github.com/responsibleai/ASSERT) release so you can:
 
 1. **Generate once** — create and review a reusable single-turn test set.
-2. **Evaluate repeatedly** — run any number of model, system-prompt, agent, or
-   release variants against the same saved cases and judge settings.
-3. **Compare offline** — inspect metric differences and changed judgments
+2. **Evaluate repeatedly** — run model, system-prompt, agent, or release
+   variants against the same saved cases and judge settings.
+3. **Compare offline** — inspect metric differences and changed case evidence
    without making additional model calls.
 
-The tools use JSON configuration files and ordinary folders. They do not require
-Node.js, a UI, or a separate ASSERT checkout. Credentials stay in the environment;
-test sets, responses, judgments, and comparisons stay in ignored local output
-folders unless you deliberately choose to share them.
-
-EvalGate reports observed evaluation evidence. It does not assign deployment
-approval, statistical significance, safety certification, or an overall winner.
+EvalGate reports observed evidence. It does not assign deployment approval,
+statistical significance, safety certification, or an overall winner.
 Generation and evaluation make provider calls and may incur usage costs.
 
-## Generate a reusable test set
+## Quick start
 
-EvalGate uses a pinned ASSERT CLI to generate one single-turn test set for later
-evaluation.
+This path uses the tracked, non-sensitive
+[end-to-end demo](examples/end-to-end).
 
-### Install
+For commands covering both gender bias and significant decisions, see the
+[demo walkthrough](demo.md).
+
+### Prerequisites
+
+- Python 3.11 or later
+- Git
+- An Azure OpenAI endpoint and a deployment you are approved to use
+- Azure CLI for Entra login, or an approved API key
+
+### 1. Install
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
-### Azure authentication
+### 2. Configure authentication
 
-ASSERT selects Azure authentication from environment variables; the JSON demo
-configs do not contain credentials and remain identical for every auth mode.
-Existing process environment variables take precedence over the ignored root
-`.env`.
+Choose one setup in the ignored root `.env`.
 
 **API key**
-
-Remove `ASSERT_AZURE_USE_AAD` and set a key in your ignored `.env`:
 
 ```dotenv
 AZURE_API_BASE=https://YOUR-RESOURCE.openai.azure.com/
 AZURE_API_VERSION=YOUR-API-VERSION
 AZURE_API_KEY=YOUR-API-KEY
+EVALGATE_AZURE_DEPLOYMENT=YOUR-DEPLOYMENT-NAME
 ```
 
-**Explicit Entra**
-
-Force Entra mode and remove `AZURE_API_KEY`:
+**Entra**
 
 ```powershell
 az login
@@ -60,306 +59,67 @@ az login
 ASSERT_AZURE_USE_AAD=1
 AZURE_API_BASE=https://YOUR-RESOURCE.openai.azure.com/
 AZURE_API_VERSION=YOUR-API-VERSION
+EVALGATE_AZURE_DEPLOYMENT=YOUR-DEPLOYMENT-NAME
 ```
 
-ASSERT also supports **automatic Entra fallback**: if neither
-`ASSERT_AZURE_USE_AAD` nor `AZURE_API_KEY` is set, it uses
-`DefaultAzureCredential`. This may resolve `az login`, managed identity, a
-service principal from environment variables, or another supported
-non-interactive identity source. Interactive browser and VS Code credentials
-are intentionally excluded by ASSERT.
+If neither explicit setting is present, ASSERT attempts its
+`DefaultAzureCredential` fallback. The wrappers also load the nearest `.env`
+while walking upward from the config file, without overriding existing process
+environment variables. Keep credentials out of tracked JSON files.
 
-Selection precedence is:
+### 3. Set the deployment
 
-1. Truthy `ASSERT_AZURE_USE_AAD` forces Entra.
-2. Otherwise, a non-empty `AZURE_API_KEY` selects API-key auth.
-3. Otherwise, `DefaultAzureCredential` is attempted.
+Set `EVALGATE_AZURE_DEPLOYMENT` once in `.env`. The tracked demo configs already
+reference it:
 
-If authentication fails, confirm the endpoint and API version, then check the
-selected mode:
+- [generation.json](examples/end-to-end/generation.json)
+- [evaluation-neutral.json](examples/end-to-end/evaluation-neutral.json)
+- [evaluation-biased-training.json](examples/end-to-end/evaluation-biased-training.json)
 
-- API key: verify `AZURE_API_KEY` is present in the process running EvalGate.
-- Entra: run `az login`, or provide the approved managed/service identity, and
-  verify that identity has access to the Azure OpenAI resource.
-- Fallback: if no explicit mode was selected, inspect which
-  `DefaultAzureCredential` sources are available.
-- If `azure-identity` is missing, reinstall the pinned dependencies from
-  `requirements.txt`; they include `assert-ai[azure-auth]`.
+For custom GPT-5 Azure deployments, the examples use
+`azure/gpt5_series/<deployment-name>` form so LiteLLM applies GPT-5 parameter
+handling.
 
-Do not add API keys, tokens, or other credentials to JSON configs or tracked
-files. The supported config is JSON, with ASSERT model and stage field
-names plus `behavior_file`, `context_file`, and `output_folder`:
-
-```json
-{
-  "behavior": {"name": "support_scope"},
-  "behavior_file": "behavior.txt",
-  "context_file": "context.txt",
-  "output_folder": "outputs/test-set-01",
-  "pipeline": {
-    "systematize": {
-      "model": {
-        "name": "openai/REPLACE_GENERATION_MODEL",
-        "max_tokens": 10000
-      },
-      "behavior_category_count": 5,
-      "web_search": false
-    },
-    "test_set": {
-      "prompt": {
-        "sample_size": 10,
-        "model": {
-          "name": "openai/REPLACE_GENERATION_MODEL",
-          "max_tokens": 3000
-        }
-      }
-    },
-    "judge": {
-      "model": {
-        "name": "openai/REPLACE_JUDGE_MODEL",
-        "max_tokens": 12000
-      },
-      "n": 1
-    }
-  }
-}
-```
-
-All relative paths resolve from the config file's directory. The destination
-must not already exist. Long behavior and context values should be stored in the
-referenced text files rather than command-line arguments.
-
-Run:
-
-```powershell
-.\.venv\Scripts\python.exe .\generate_tests.py --config .\local\generation.json
-```
-
-Generation writes native ASSERT artifacts, `resolved-config.json`, and
-`complete.json`. Review the saved taxonomy, cases, and configured judge settings
-before evaluation. A failed or incomplete child run exits nonzero and normally
-removes output created by that invocation.
-
-ASSERT may make multiple provider calls for taxonomy generation, batching, and
-its own retries; case count is not a call count or cost guarantee. Automated
-tests make no provider calls. Live generation requires approved non-sensitive
-inputs and environment credentials.
-
-Live validation note (2026-11-17): Entra authentication and generation of 10
-validated cases succeeded with ASSERT 0.3.0 using
-`azure/gpt5_series/assert-intermediate` for the GPT-5.4 deployment. The
-`gpt5_series/` routing hint lets LiteLLM translate ASSERT's `max_tokens` setting
-to `max_completion_tokens` without changing the Azure deployment name. Using
-`azure/assert-intermediate` without that hint previously failed because the
-deployment name did not identify the model family. The judge stage was not run.
-
-### Gender-bias example
-
-[examples/gender-bias/generation.json](examples/gender-bias/generation.json)
-contains the behavior, context, model routes, and settings used for the gender-bias
-example. Its output destination is portable; replace `assert-intermediate` with
-your own GPT-5 deployment name before running:
-
-```powershell
-.\.venv\Scripts\python.exe .\generate_tests.py --config .\examples\gender-bias\generation.json
-```
-
-The saved [test cases](examples/gender-bias/test_set.jsonl) contain 10 generated
-prompts, and the [taxonomy](examples/gender-bias/taxonomy.json) contains five
-behavior categories. These are sample outputs, not scored assistant responses;
-regeneration may produce different cases. The taxonomy copy omits the original
-machine-specific source path. Credentials and full local run artifacts remain
-ignored.
-
-## Evaluate a saved model
-
-Keep the generated test set unchanged and create an evaluation configuration
-such as `local/evaluation.json`:
-
-```json
-{
-  "test_set_folder": "../outputs/test-set-gender-bias",
-  "system_prompt_file": "candidate-system-prompt.txt",
-  "output_folder": "../outputs/gender-bias-candidate-01",
-  "candidate": {
-    "model": {
-      "name": "azure/gpt5_series/REPLACE_CANDIDATE_DEPLOYMENT",
-      "max_tokens": 3000
-    }
-  },
-  "inference": {
-    "max_turns": 1,
-    "concurrency": 2
-  }
-}
-```
-
-All relative paths resolve from the configuration file. The output destination
-must not exist. Credentials must remain in environment variables and are never
-accepted in this JSON file. For custom Azure deployments, use the explicit GPT
-family routing shown above so LiteLLM applies the correct token parameter.
-
-Run:
-
-```powershell
-.\.venv\Scripts\python.exe .\evaluate_model.py --config .\local\evaluation.json
-```
-
-Evaluation copies the test cases, taxonomy, resolved generation settings, and
-exact system prompt into the new run. ASSERT then runs inference and its existing
-judge configuration without regeneration. The source test-set folder is checked
-afterward for byte-for-byte changes.
-
-The evaluation step can be run as many times as needed against the same saved
-test set. Create a new output folder for each candidate model, updated system
-prompt, agent release, or other behavioral change. This keeps historical results
-separate and makes it possible to compare behavior over time without regenerating
-the tests.
-
-A successful run ends with `complete.json` and `summary.json`. The summary keeps
-`policy_violation_not_permissible`, `policy_violation_permissible`, and
-`overrefusal` separate. Each available metric includes a numerator, denominator,
-and rate; a metric with no applicable evidence is `unavailable`, not a
-zero-violation result.
-
-Failed and incomplete runs are retained for inspection with `failed.json` and
-available native ASSERT artifacts, but never receive `complete.json`. Use a new
-output folder for a retry. Native responses, judgments, and ASSERT execution
-status remain under the run's `native/` directory.
-
-## Compare two evaluation runs
-
-Comparison is entirely offline. It reads two completed Feature 2 run folders,
-makes no provider calls, and rejects incompatible or incomplete evidence:
-
-```powershell
-.\.venv\Scripts\python.exe .\compare_runs.py `
-  .\outputs\candidate-a-run `
-  .\outputs\candidate-b-run `
-  --output .\outputs\candidate-comparison.json
-```
-
-The two runs must use identical saved test content, context, taxonomy, rubrics,
-and judge/scoring settings. Candidate models and system prompts may differ.
-`--output` is optional and defaults to `comparison.json` in the current
-directory; an existing destination is never overwritten.
-
-The JSON report shows:
-
-- each candidate model and exact system prompt;
-- expected and scored case counts;
-- side-by-side metric numerators, denominators, and rates;
-- differences labeled `second_minus_first`;
-- case-level judgment changes matched by `test_case_id`, with references back
-  to each run's response and score evidence.
-
-If a metric lacks applicable evidence, its result is marked `unavailable` and
-no numeric difference is written. Comparison reports observations only; it
-does not declare a winner, statistical significance, safety certification, or
-deployment approval.
-
-### How test cases become metrics
-
-Applicability denominators change because the judge independently decides which
-saved taxonomy categories are relevant for each response. Different candidate
-responses or system prompts can expose different relevant behaviors, even when
-the test set is unchanged.
-
-1. Generation creates a fixed test set. Every case in that set is sent to the
-   candidate and receives a response.
-2. The judge scores every completed case. It decides which behavior categories
-   in the saved taxonomy are relevant to that case and whether the response
-   violated each relevant category.
-3. ASSERT then groups the judgments into metrics. A case enters a metric's
-   denominator when at least one relevant category belongs to that metric's
-   group. It may enter a permissible-side metric, an impermissible-side metric,
-   both groups, or neither.
-4. The numerator counts violations among those applicable cases. The rate is
-   `violations / applicable cases`.
-
-For example, a request asking whether women should be excluded from leadership
-is likely applicable to gender-stereotyping and unequal-advice categories. A
-request for a gender-neutral resume scoring rubric may be applicable only to
-permissible, gender-neutral behavior and may not enter an impermissible
-violation metric.
-
-For example, if 10 cases ran, 6 are applicable to a metric, and 1 violates it,
-the result is `1/6`. This does not mean the judge ran six tests. The other four
-cases were still scored, but did not contribute to that metric.
-
-That applicability classification is made for each run. If one run shows `0/5`
-and another shows `1/6`, compare both the outcome change and the relevance
-decision that added one applicable case. Inspect the changed cases and saved
-judgments before interpreting the rate difference.
-
-## End-to-end demo
-
-The tracked [examples/end-to-end](examples/end-to-end) bundle demonstrates the
-complete workflow with non-sensitive inputs:
-
-1. Generate one 10-case test set.
-2. Review its taxonomy and permitted/prohibited coverage.
-3. Evaluate the same test set twice with different system prompts.
-4. Compare the two runs offline.
-
-### 1. Prepare
-
-Install dependencies as shown above, sign in, and set the non-secret values in
-the ignored root `.env`:
-
-```dotenv
-ASSERT_AZURE_USE_AAD=1
-AZURE_API_BASE=https://YOUR-RESOURCE.openai.azure.com/
-AZURE_API_VERSION=YOUR-API-VERSION
-```
-
-Do not put tokens or API keys in demo files. Replace each
-`REPLACE_*_DEPLOYMENT` value in
-[examples/end-to-end/generation.json](examples/end-to-end/generation.json),
-[examples/end-to-end/evaluation-neutral.json](examples/end-to-end/evaluation-neutral.json),
-and
-[examples/end-to-end/evaluation-biased-training.json](examples/end-to-end/evaluation-biased-training.json)
-with deployments you are approved to use. The supplied `azure/gpt5_series/`
-prefix is the GPT-5 routing form; choose the appropriate provider/model form if
-using another family.
-
-All output names in the examples are relative to the config files. Outputs must
-not already exist; change their names rather than overwrite prior evidence.
-The example live workflow makes provider calls and may incur usage charges.
-
-### 2. Generate and review
+### 4. Generate and review
 
 ```powershell
 .\.venv\Scripts\python.exe .\generate_tests.py --config .\examples\end-to-end\generation.json
 ```
 
-Review:
+Expected output:
 
-- `outputs\demo-test-set\native\generated\taxonomy.json` for the generated
-  behavior categories and permissible/prohibited coverage.
-- `outputs\demo-test-set\native\generated\test_set.jsonl` for every prompt.
-- `outputs\demo-test-set\complete.json` for requested/completed counts.
+```text
+outputs\demo-test-set\
+```
 
-A completed generation only proves the requested artifacts exist; it does not
-approve the cases or their coverage. Manually review them before continuing.
+Stop and review:
 
-### 3. Evaluate twice
+- `native\generated\taxonomy.json` — behavior categories and permissible/
+  prohibited coverage
+- `native\generated\test_set.jsonl` — all generated prompts
+- `complete.json` — requested and completed counts
 
-Both configs use the same saved test set and judge settings. Only the system
-prompt and output folder differ:
+A completion marker proves generation completed; it does not approve test
+quality or coverage.
+
+### 5. Evaluate the saved set twice for the demo
 
 ```powershell
 .\.venv\Scripts\python.exe .\evaluate_model.py --config .\examples\end-to-end\evaluation-neutral.json
 .\.venv\Scripts\python.exe .\evaluate_model.py --config .\examples\end-to-end\evaluation-biased-training.json
 ```
 
-The second prompt is explicitly a training-only bias demonstration, not a
-recommended production prompt. Each run writes a `complete.json`,
-`summary.json`, copied inputs, responses, and judgments under its separate
-`outputs\demo-run-*` folder. Repeat this step with a new output folder whenever
-you test a new model, system prompt, agent release, or configuration change.
+Expected outputs:
 
-### 4. Compare
+```text
+outputs\demo-run-neutral\
+outputs\demo-run-biased-training\
+```
+
+The second prompt is a training-only bias demonstration, not a recommended
+production prompt. Both runs reuse the reviewed test set and its judge settings.
+
+### 6. Compare
 
 ```powershell
 .\.venv\Scripts\python.exe .\compare_runs.py `
@@ -368,31 +128,294 @@ you test a new model, system prompt, agent release, or configuration change.
   --output .\outputs\demo-comparison.json
 ```
 
-Open `outputs\demo-comparison.json` for metric counts/rates, changed cases, and
-references to both runs' response and judgment evidence. Differences are always
-the second run minus the first. If the metric denominators differ, inspect the
-case-level applicability and evidence before interpreting the rate difference.
+Comparison is entirely offline. It validates compatibility and completeness,
+matches cases by ID, calculates second-minus-first metric differences, and
+identifies changed judgments.
 
-Comparison and its source runs stay under ignored `outputs/`. The walkthrough
-does not declare a winner, significance, certification, or deployment approval.
+### 7. View results
 
-## View saved results locally
+Open [results-viewer.html](results-viewer.html) in a modern browser:
 
-Open [results-viewer.html](results-viewer.html) directly in a modern browser.
-Select one or more saved `summary.json` or `comparison.json` files; no server,
-package install, upload, or build step is required.
+- **Evaluation** → select a completed run folder
+- **Comparison** → select `outputs\demo-comparison.json`
+- **Test prompts** → select a generated test-set folder (for example,
+  `outputs\significant-decisions-test-set`) to read all prompts, titles, and
+  behavior categories before evaluation. Use Ctrl+F to find text.
 
-The viewer shows:
+The viewer is local-only and makes no network requests.
 
-- run completion, candidate, system prompt, case counts, and metrics;
-- comparison metric tables and second-minus-first differences;
-- changed cases and their saved response/judgment references;
-- unavailable metrics and warnings when comparison denominators differ.
+## Significant decisions example
 
-The applicability-denominator warning in the comparison expands to explain the
-distinction between total scored cases and metric applicability.
+The [significant decisions example](examples/significant-decisions) tests whether
+an assistant supports accountable human decision-makers without making,
+finalising, or effectively determining significant decisions itself. It also
+covers case-by-case necessity and proportionality rather than blanket adverse
+outcomes, using fictional scenarios.
 
-The page reads selected files only in the browser. It makes no network requests,
-stores no data, and does not upload or modify evidence. Evidence references are
-display-only because a local HTML page cannot safely resolve arbitrary
-filesystem paths. Open sensitive results only on an approved local machine.
+Use the same authentication and deployment setup as the quick start:
+
+```powershell
+.\.venv\Scripts\python.exe .\generate_tests.py --config .\examples\significant-decisions\generation.json
+```
+
+Review the generated taxonomy and prompts in
+`outputs\significant-decisions-test-set\native\generated` before evaluating:
+
+Two candidates use the same model, saved tests, and judge settings:
+
+- [Helpful only](examples/significant-decisions/system-prompt-helpful.txt) has
+  only the instruction "You are a helpful assistant."
+- [Policy aligned](examples/significant-decisions/system-prompt-policy-aligned.txt)
+  explicitly follows the significant decisions policy.
+
+```powershell
+.\.venv\Scripts\python.exe .\evaluate_model.py --config .\examples\significant-decisions\evaluation-helpful.json
+.\.venv\Scripts\python.exe .\evaluate_model.py --config .\examples\significant-decisions\evaluation-policy-aligned.json
+```
+
+Compare the two runs offline:
+
+```powershell
+.\.venv\Scripts\python.exe .\compare_runs.py `
+  .\outputs\significant-decisions-run-helpful `
+  .\outputs\significant-decisions-run-policy-aligned `
+  --output .\outputs\significant-decisions-comparison.json
+```
+
+This example tests single-turn responses, not whether a deployed workflow
+actually enforces human decision-making. The helpful-only candidate has no
+policy-specific system instructions, but the underlying model may still have
+its own safeguards.
+
+## What gets created
+
+```text
+outputs/
+├── demo-test-set/
+│   ├── complete.json
+│   ├── resolved-config.json
+│   └── native/generated/
+│       ├── taxonomy.json
+│       └── test_set.jsonl
+├── demo-run-neutral/
+│   ├── complete.json
+│   ├── summary.json
+│   ├── inputs/
+│   └── native/evaluation/run/
+│       ├── inference_set.jsonl
+│       ├── scores.jsonl
+│       └── manifest.json
+├── demo-run-biased-training/
+└── demo-comparison.json
+```
+
+The scripts reject existing destinations. Choose a new output folder for every
+generation, evaluation, and comparison; never reuse an existing name.
+
+## Working with the tools
+
+### Generate tests
+
+Script:
+
+```powershell
+.\.venv\Scripts\python.exe .\generate_tests.py --config <generation-config.json>
+```
+
+The config supplies:
+
+- behavior and context, either inline or through text files;
+- generation and judge models;
+- behavior-category count;
+- prompt sample size;
+- output folder.
+
+All relative paths resolve from the config file's directory. Generation writes
+`resolved-config.json`, native ASSERT artifacts, and a final `complete.json`.
+Failed or incomplete generation exits nonzero and normally removes output
+created by that invocation.
+
+### Evaluate the saved test set
+
+Script:
+
+```powershell
+.\.venv\Scripts\python.exe .\evaluate_model.py --config <evaluation-config.json>
+```
+
+The config selects:
+
+- an existing completed test-set folder;
+- a candidate model and settings;
+- a system-prompt file;
+- a new output folder.
+
+Evaluation copies and preserves the source tests, taxonomy, generation settings,
+and exact prompt, then runs ASSERT inference and judging. A complete run writes
+`complete.json` and `summary.json`. A failed run remains for diagnosis with
+`failed.json` but never receives `complete.json`.
+
+Run this step as often as needed for a new model, prompt, agent release, or
+configuration change. Each attempt uses a new output folder, so historical
+results remain separate.
+
+### Compare evaluation runs
+
+Script:
+
+```powershell
+.\.venv\Scripts\python.exe .\compare_runs.py <first-run> <second-run> --output <new-comparison.json>
+```
+
+The comparison is offline: it makes no ASSERT or provider calls. It requires:
+
+- complete runs;
+- exactly one valid score per expected case;
+- identical tests, context, taxonomy, rubrics, and judge settings.
+
+The report includes:
+
+- candidate identities and exact system prompts;
+- expected/scored counts;
+- side-by-side metrics and second-minus-first differences;
+- every case matched by ID, with changed cases first;
+- prompts, responses, judgments, and evidence references.
+
+The viewer intentionally accepts a validated `comparison.json`, not two raw
+folders, because compatibility and completeness checks belong in the CLI.
+
+## Test another prompt
+
+1. Create a local prompt:
+
+   ```powershell
+   New-Item .\local -ItemType Directory -Force
+   New-Item .\local\my-system-prompt.txt -ItemType File -Force
+   ```
+
+2. Write the prompt and save the file.
+
+3. Copy an evaluation config:
+
+   ```powershell
+   Copy-Item .\examples\end-to-end\evaluation-neutral.json .\local\my-evaluation.json
+   ```
+
+4. In `local\my-evaluation.json`, change:
+
+   - `test_set_folder` to `../outputs/demo-test-set`, because the copied config
+     now lives in `local/`;
+   - `system_prompt_file` to `my-system-prompt.txt`;
+   - `output_folder` to a new path such as `../outputs/my-prompt-run`;
+   - leave `candidate.model.name` using `EVALGATE_AZURE_DEPLOYMENT`, or replace
+     the model name when intentionally testing a different route;
+   - confirm `test_set_folder` points to the reviewed test set.
+
+5. Evaluate:
+
+   ```powershell
+   .\.venv\Scripts\python.exe .\evaluate_model.py --config .\local\my-evaluation.json
+   ```
+
+6. Compare with an earlier run:
+
+   ```powershell
+   .\.venv\Scripts\python.exe .\compare_runs.py `
+     .\outputs\demo-run-neutral `
+     .\outputs\my-prompt-run `
+     --output .\outputs\my-prompt-comparison.json
+   ```
+
+7. Open the viewer, select **Comparison**, and load the new comparison file.
+
+## Understanding results
+
+### How a test becomes a metric
+
+1. Every generated case is sent to the candidate.
+2. The judge scores every completed response.
+3. The judge decides which taxonomy behavior categories are relevant.
+4. ASSERT includes the case in a metric when at least one relevant category
+   belongs to that metric's group.
+5. The numerator counts violations among applicable cases:
+   `violations / applicable cases`.
+
+This is why denominators can differ. If two runs report `0/5` and `1/6`, all
+cases were still scored; the second judge classified one additional case as
+applicable to that metric.
+
+Example:
+
+- A prompt asking to exclude women from leadership may be applicable to
+  stereotyping and unequal-advice categories.
+- A request for a gender-neutral resume rubric may be applicable only to
+  permissible, gender-neutral behavior.
+
+Inspect the changed judgments before interpreting a rate difference.
+
+### Metric labels
+
+EvalGate keeps these separate:
+
+- `policy_violation_not_permissible`
+- `policy_violation_permissible`
+- `overrefusal`
+
+An unavailable metric has no numeric rate or difference; it is not a successful
+zero.
+
+## Azure authentication reference
+
+ASSERT uses this precedence:
+
+1. Truthy `ASSERT_AZURE_USE_AAD` forces Entra.
+2. Otherwise `AZURE_API_KEY` selects API-key auth.
+3. Otherwise ASSERT attempts `DefaultAzureCredential`.
+
+The `DefaultAzureCredential` chain can use approved local or managed identity
+sources, including `az login` or managed/service identity. ASSERT excludes
+interactive browser and VS Code credentials.
+
+Credentials belong in the process environment or ignored root `.env`, never in
+JSON configs or tracked examples.
+
+## Troubleshooting
+
+### Existing output
+
+All three scripts reject an existing output destination. Choose a new folder or
+file name; they do not overwrite evidence.
+
+### Missing or invalid authentication
+
+- API key: verify `AZURE_API_KEY` is present in the process running EvalGate.
+- Entra: run `az login` and verify the identity has access to the Azure OpenAI
+  resource.
+- Default fallback: inspect the available `DefaultAzureCredential` sources.
+- Reinstall `requirements.txt` if `azure-identity` is missing.
+- Verify `AZURE_API_BASE` and `AZURE_API_VERSION`.
+
+Never include the credential value in an error report or issue.
+
+### Incomplete evaluation
+
+Check the run's `failed.json`, native `manifest.json`, and any provider diagnostics.
+Use a new output folder after correcting the problem. A failed run is not a
+completed result.
+
+### Viewer limitations
+
+The viewer is local-only and uses browser file/folder selection. It makes no
+network requests and does not upload or persist selected evidence. A local
+comparison file can still contain sensitive prompts and responses; open it only
+on an approved machine.
+
+## Scope and privacy
+
+EvalGate is a local demonstration workflow, not a production platform. It does
+not provide UI hosting, accounts, shared storage, thresholds, automated
+regression decisions, statistical claims, or deployment certification.
+
+Generated tests, responses, and judgments can contain sensitive data. Keep
+`outputs/` local, apply your organization's retention/access rules, and review
+files before sharing them.

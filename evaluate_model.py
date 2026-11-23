@@ -18,6 +18,8 @@ from generate_tests import (
     GenerationError,
     _assert_executable,
     _reject_credential_fields,
+    _load_environment,
+    _resolve_model_names,
     _validate_test_set,
 )
 
@@ -60,6 +62,7 @@ def _positive_int(value: Any, field: str) -> int | None:
 
 
 def load_evaluation_config(config_path: Path) -> tuple[dict[str, Any], Path, Path, str]:
+    _load_environment(config_path)
     try:
         raw = json.loads(config_path.read_text(encoding="utf-8"))
     except FileNotFoundError:
@@ -76,6 +79,10 @@ def load_evaluation_config(config_path: Path) -> tuple[dict[str, Any], Path, Pat
 
     config_dir = config_path.resolve().parent
     config = copy.deepcopy(raw)
+    try:
+        _resolve_model_names(config)
+    except GenerationError as exc:
+        raise EvaluationError(str(exc)) from exc
 
     test_set_value = config.pop("test_set_folder", None)
     if not isinstance(test_set_value, str) or not test_set_value.strip():

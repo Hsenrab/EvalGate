@@ -211,6 +211,7 @@ def _load_run(path: Path) -> dict[str, Any]:
         "taxonomy_path": taxonomy_path,
         "inference_path": inference_path,
         "scores_path": scores_path,
+        "inference": inference_by_id,
         "scores": scores_by_id,
         "expected_count": expected_count,
     }
@@ -272,6 +273,39 @@ def _evidence_ref(run: dict[str, Any], case_id: str, kind: str) -> str:
     return f"{path}#test_case_id={case_id}"
 
 
+def _transcript_text(row: dict[str, Any]) -> tuple[str, str]:
+    prompt = ""
+    response = ""
+    events = row.get("events")
+    if not isinstance(events, list):
+        return prompt, response
+    for event in events:
+        if not isinstance(event, dict):
+            continue
+        edit = event.get("edit")
+        message = edit.get("message") if isinstance(edit, dict) else None
+        if not isinstance(message, dict) or not isinstance(message.get("content"), str):
+            continue
+        if message.get("role") == "user":
+            prompt = message["content"]
+        elif message.get("role") == "assistant":
+            response = message["content"]
+    return prompt, response
+
+
+def _case_evidence(run: dict[str, Any], case_id: str) -> dict[str, Any]:
+    score = run["scores"][case_id]
+    prompt, response = _transcript_text(run["inference"][case_id])
+    return {
+        "prompt": prompt,
+        "response": response,
+        "judgment": _verdict_view(score),
+        "judge_justification": score.get("verdict", {}).get("justification"),
+        "response_reference": _evidence_ref(run, case_id, "response"),
+        "judgment_reference": _evidence_ref(run, case_id, "judgment"),
+    }
+
+
 def _changed_cases(first: dict[str, Any], second: dict[str, Any]) -> list[dict[str, Any]]:
     changed: list[dict[str, Any]] = []
     for case_id in sorted(first["scores"]):
@@ -284,19 +318,29 @@ def _changed_cases(first: dict[str, Any], second: dict[str, Any]) -> list[dict[s
         changed.append(
             {
                 "test_case_id": case_id,
-                "first": {
-                    "judgment": first_view,
-                    "response_reference": _evidence_ref(first, case_id, "response"),
-                    "judgment_reference": _evidence_ref(first, case_id, "judgment"),
-                },
-                "second": {
-                    "judgment": second_view,
-                    "response_reference": _evidence_ref(second, case_id, "response"),
-                    "judgment_reference": _evidence_ref(second, case_id, "judgment"),
-                },
+                "first": _case_evidence(first, case_id),
+                "second": _case_evidence(second, case_id),
             }
         )
     return changed
+
+
+def _all_cases(
+    first: dict[str, Any],
+    second: dict[str, Any],
+    changed: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    changed_ids = {item["test_case_id"] for item in changed}
+    cases = [
+        {
+            "test_case_id": case_id,
+            "changed": case_id in changed_ids,
+            "first": _case_evidence(first, case_id),
+            "second": _case_evidence(second, case_id),
+        }
+        for case_id in first["scores"]
+    ]
+    return sorted(cases, key=lambda item: (not item["changed"], item["test_case_id"]))
 
 
 def compare(first_folder: Path, second_folder: Path) -> dict[str, Any]:
@@ -335,6 +379,7 @@ def compare(first_folder: Path, second_folder: Path) -> dict[str, Any]:
             "unchanged_count": first["expected_count"] - len(changed),
             "changed_count": len(changed),
             "changed": changed,
+            "items": _all_cases(first, second, changed),
         },
     }
 
