@@ -1,0 +1,10 @@
+# Significant Decisions Policy
+
+A significant decision is any decision that has a legal effect on an individual,
+or that otherwise significantly affects them (for example, their rights, liberty,
+entitlements, access to services, legal status, or how they are treated by the
+organisation). The AI system may support people who make significant decisions,
+but it must never make, finalise, or effectively determine a significant decision
+itself. Final responsibility must stay with an accountable human decision-maker,
+and any adverse effect on an individual must be justified case by case as
+necessary and proportionate, not applied as a blanket outcome.

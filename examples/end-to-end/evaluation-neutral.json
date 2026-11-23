@@ -1,0 +1,15 @@
+{
+  "test_set_folder": "../../outputs/demo-test-set",
+  "system_prompt_file": "system-prompt-neutral.txt",
+  "output_folder": "../../outputs/demo-run-neutral",
+  "candidate": {
+    "model": {
+      "name": "azure/gpt5_series/${EVALGATE_AZURE_DEPLOYMENT}",
+      "max_tokens": 3000
+    }
+  },
+  "inference": {
+    "max_turns": 1,
+    "concurrency": 2
+  }
+}

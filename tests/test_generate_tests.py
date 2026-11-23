@@ -129,6 +129,39 @@ class GenerateTestsTests(unittest.TestCase):
 
             self.assertFalse((root / "output").exists())
 
+    def test_rejects_credential_fields_in_config(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            config_path = self.config(root)
+            config = json.loads(config_path.read_text())
+            config["AZURE_API_KEY"] = "do-not-save"
+            config_path.write_text(json.dumps(config), encoding="utf-8")
+
+            with self.assertRaisesRegex(
+                generate_tests.GenerationError, "Credentials are not allowed"
+            ):
+                generate_tests.load_generation_config(config_path)
+
+    def test_resolves_model_environment_variables(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            config_path = self.config(root)
+            config = json.loads(config_path.read_text())
+            config["pipeline"]["systematize"]["model"]["name"] = (
+                "azure/gpt5_series/${EVALGATE_AZURE_DEPLOYMENT}"
+            )
+            config_path.write_text(json.dumps(config), encoding="utf-8")
+
+            with mock.patch.dict(
+                "os.environ", {"EVALGATE_AZURE_DEPLOYMENT": "demo-deployment"}
+            ):
+                resolved, _ = generate_tests.load_generation_config(config_path)
+
+            self.assertEqual(
+                "azure/gpt5_series/demo-deployment",
+                resolved["pipeline"]["systematize"]["model"]["name"],
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

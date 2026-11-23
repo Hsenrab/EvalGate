@@ -1,6 +1,6 @@
 # Initial Demo Feature Breakdown
 
-Based on [requirements.md](./requirements.md), deliver four features:
+Based on [requirements.md](./requirements.md), deliver six features:
 three Python scripts, then demo files and a walkthrough.
 
 The outcome is **generate once, evaluate twice, compare**. This document is a
@@ -119,8 +119,77 @@ Node.js, a UI, or a separate ASSERT source checkout.
 
 **Depends on:** Features 1-3 for final end-to-end verification.
 
+## 5. Azure authentication modes
+
+**Outcome:** Run the existing demo with either an Azure OpenAI API key or Entra
+authentication, with no new credential implementation.
+
+**Includes:**
+
+- Document the environment variables required for each mode:
+  `AZURE_API_KEY` for API-key auth, or `ASSERT_AZURE_USE_AAD=1` with an
+  available `DefaultAzureCredential` login for Entra auth.
+- Define a simple selection rule: use Entra mode when `ASSERT_AZURE_USE_AAD=1`;
+  otherwise use the API key. Do not invent token acquisition, store credentials,
+  or add an authentication adapter.
+- Keep credentials in process environment or the ignored root `.env`; never put
+  keys or tokens in JSON configs, tracked examples, logs, or saved artifacts.
+- Reuse ASSERT/LiteLLM's existing Azure authentication and fallback behavior so
+  generation, evaluation, and comparison demo commands remain unchanged apart
+  from environment setup.
+- Verify one bounded smoke generation with each approved authentication mode;
+  automated tests remain provider-free and validate only configuration and
+  credential-field rejection.
+- Update the demo README with both setup paths, placeholder-only examples, and
+  one shared failure message for missing/invalid credentials.
+
+**Focused test:** Confirm both documented setups reach the same ASSERT CLI path
+without changing generation, evaluation, or comparison configuration.
+
+**Done when:** Users can switch auth mode through environment variables alone
+and run the complete demo while tracked files remain credential-free.
+
+**Depends on:** Features 1-4 and ASSERT/LiteLLM's existing Azure auth support.
+
 ## Scope boundary
 
-UI work is Stage 2 and is scoped separately. Do not add catalogues, formal
+## 6. Lightweight results viewer
+
+**Outcome:** Inspect saved evaluation runs and comparisons visually without
+adding a service or build system.
+
+**Includes:**
+
+- Prefer one self-contained, read-only HTML file that opens locally in a
+  browser. It should need no backend, JavaScript package install, Node.js, or
+  framework build.
+- Let the user select one or more generated run folders or saved JSON artifacts
+  through browser-local file selection. Do not add file-system scanning,
+  uploads, accounts, or shared hosting.
+- Show a concise run summary for the candidate model/system prompt, expected and
+  scored counts, metric numerators/denominators/rates, completion status, and
+  unavailable metrics.
+- Render comparison metric differences side by side and make changed cases
+  discoverable by `test_case_id`, with links or references to the saved response
+  and judgment evidence.
+- Treat all values as observational evidence. Do not calculate winners,
+  significance, safety certification, thresholds, or deployment approval in
+  the UI.
+- Read files locally in the browser and avoid sending data anywhere. Document
+  that browser file access is limited and that sensitive saved artifacts should
+  remain on an approved local machine.
+
+**Focused validation:** Open representative saved `summary.json` and
+`comparison.json` files, confirm the displayed counts and rate differences
+match the source, and verify no network calls occur.
+
+**Done when:** A user can open the HTML locally, select saved run/comparison
+artifacts, and review the main results and changed cases without a server or
+command-line JSON inspection.
+
+**Depends on:** Features 2 and 3's stable saved result artifacts.
+
+UI work beyond this local viewer is Stage 2 and remains separately scoped. Do
+not add catalogues, formal
 versioning, adapter frameworks, threshold gates, automated regression decisions,
-partial comparisons, CI, scheduling, or shared hosting to these four features.
+partial comparisons, CI, scheduling, or shared hosting to these six features.

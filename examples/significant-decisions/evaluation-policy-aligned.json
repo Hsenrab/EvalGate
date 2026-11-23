@@ -1,0 +1,15 @@
+{
+  "test_set_folder": "../../outputs/significant-decisions-test-set",
+  "system_prompt_file": "system-prompt-policy-aligned.txt",
+  "output_folder": "../../outputs/significant-decisions-run-policy-aligned",
+  "candidate": {
+    "model": {
+      "name": "azure/gpt5_series/${EVALGATE_AZURE_DEPLOYMENT}",
+      "max_tokens": 3000
+    }
+  },
+  "inference": {
+    "max_turns": 1,
+    "concurrency": 2
+  }
+}

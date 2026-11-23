@@ -8,12 +8,14 @@ from importlib.metadata import PackageNotFoundError, version
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
 from typing import Any, Callable
 
 import yaml
+from dotenv import load_dotenv
 
 
 ASSERT_VERSION = "0.3.0"
@@ -30,6 +32,50 @@ _CREDENTIAL_KEYS = {
 
 class GenerationError(Exception):
     """A clear, expected generation failure."""
+
+
+_MODEL_ENV_PATTERN = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}")
+
+
+def _resolve_model_env(value: str, path: str) -> str:
+    missing: list[str] = []
+
+    def replace(match: re.Match[str]) -> str:
+        name = match.group(1)
+        resolved = os.environ.get(name)
+        if resolved is None or not resolved.strip():
+            missing.append(name)
+            return match.group(0)
+        return resolved
+
+    resolved = _MODEL_ENV_PATTERN.sub(replace, value)
+    if missing:
+        raise GenerationError(
+            f"Environment variable {', '.join(sorted(set(missing)))} "
+            f"required by {path} is not set"
+        )
+    return resolved
+
+
+def _resolve_model_names(value: Any, path: str = "config") -> None:
+    if isinstance(value, dict):
+        for key, child in value.items():
+            child_path = f"{path}.{key}"
+            if key == "name" and isinstance(child, str) and "model" in path.split("."):
+                value[key] = _resolve_model_env(child, child_path)
+            else:
+                _resolve_model_names(child, child_path)
+    elif isinstance(value, list):
+        for index, child in enumerate(value):
+            _resolve_model_names(child, f"{path}[{index}]")
+
+
+def _load_environment(config_path: Path) -> None:
+    for parent in config_path.resolve().parents:
+        env_path = parent / ".env"
+        if env_path.is_file():
+            load_dotenv(env_path, override=False)
+            return
 
 
 def _write_json(path: Path, value: Any) -> None:
@@ -78,6 +124,7 @@ def _reject_credential_fields(value: Any, path: str = "config") -> None:
 
 
 def load_generation_config(config_path: Path) -> tuple[dict[str, Any], Path]:
+    _load_environment(config_path)
     try:
         raw = json.loads(config_path.read_text(encoding="utf-8"))
     except FileNotFoundError:
@@ -90,6 +137,7 @@ def load_generation_config(config_path: Path) -> tuple[dict[str, Any], Path]:
     _reject_credential_fields(raw)
     config_dir = config_path.resolve().parent
     config = copy.deepcopy(raw)
+    _resolve_model_names(config)
 
     output_value = config.pop("output_folder", None)
     if not isinstance(output_value, str) or not output_value.strip():
